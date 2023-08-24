@@ -40,8 +40,6 @@ end
 
 function eventBase:Cleanup()
     self:RemoveAllHooks()
-    self.IsActive = false
-    self.Players = {}
 end
 
 if SERVER then

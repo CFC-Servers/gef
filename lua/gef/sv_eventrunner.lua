@@ -5,21 +5,26 @@ function GEF.GetActiveEvent()
 end
 
 function GEF.StartEvent( eventName )
-    local event = GEF.GetEvent( eventName )
-    local active = table.Copy( event )
+    local event = GEF.LoadEvent( eventName )
 
-    GEF.ActiveEvent = active
+    GEF.ActiveEvent = event
+    net.Start( "GEF_EventLoad" )
+    net.WriteString( eventName )
+    net.Broadcast()
 
-    active:Initialize()
-    active:BroadcastMethod( "Initialize" )
+    event:Initialize()
 end
 
 function GEF.StopActiveEvent()
     local event = GEF.ActiveEvent
     if not event then return end
 
-    event:BroadcastMethod( "Cleanup" )
     event:Cleanup()
+
+    net.Start( "GEF_EventEnded" )
+    net.Broadcast()
+
+    GEF.ActiveEvent = nil
 end
 
 local activeSignup = false

@@ -47,7 +47,6 @@ end
 if SERVER then
     function eventBase:BroadcastMethod( methodName, ... )
         net.Start( "GEF_EventMethod" )
-        net.WriteString( self.ID )
         net.WriteString( methodName )
         net.WriteTable( { ... } )
         net.Broadcast()
@@ -63,11 +62,10 @@ if CLIENT then
     end
 
     net.Receive( "GEF_EventMethod", function()
-        local eventID = net.ReadString()
         local methodName = net.ReadString()
         local args = net.ReadTable()
 
-        local event = GEF.GetEvent( eventID )
+        local event = GEF.ActiveEvent
         if event then
             local method = event[methodName]
             if method then

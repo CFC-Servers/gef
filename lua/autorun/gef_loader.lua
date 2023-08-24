@@ -1,7 +1,7 @@
 GEF = {}
 
 if SERVER then
-    util.AddNetworkString( "GEF_StartEvent" )
+    util.AddNetworkString( "GEF_EventLoad" )
     util.AddNetworkString( "GEF_EventMethod" )
     util.AddNetworkString( "GEF_ReloadEvents" )
 
@@ -12,6 +12,10 @@ end
 
 include( "gef/sh_eventbase.lua" )
 include( "gef/sh_eventloader.lua" )
+
+if CLIENT then
+    include( "gef/cl_eventrunner.lua" )
+end
 
 if SERVER then
     include( "gef/sv_eventrunner.lua" )

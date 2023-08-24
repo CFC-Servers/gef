@@ -9,7 +9,7 @@ function GEF.StartEvent( eventName )
     local active = table.Copy( event )
 
     GEF.ActiveEvent = active
-    PrintTable( active )
+
     active:Initialize()
     active:BroadcastMethod( "Initialize" )
 end

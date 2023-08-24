@@ -49,23 +49,19 @@ function EVENT:Start()
         if self.PlayerProgression[attacker] > #self.WeaponProgression then
             PrintMessage( HUD_PRINTTALK, attacker:Nick() .. " has won the Gun Game event!" )
 
-            timer.Simple( 0, function()
-                for ply in pairs( self.Players ) do
-                    if IsValid( ply ) then
-                        ply:Spawn()
-                    end
-                end
-            end )
+            for ply in pairs( self.Players ) do
+                ply:Spawn()
+            end
 
             self:End()
             return
+        else
+            attacker:StripWeapons()
+
+            timer.Simple( 0, function()
+                attacker:Give( self.WeaponProgression[self.PlayerProgression[attacker]] )
+            end )
         end
-
-        attacker:StripWeapons()
-
-        timer.Simple( 0, function()
-            attacker:Give( self.WeaponProgression[self.PlayerProgression[attacker]] )
-        end )
     end )
 
     timer.Simple( 60, function()

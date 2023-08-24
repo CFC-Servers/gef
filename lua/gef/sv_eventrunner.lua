@@ -14,6 +14,14 @@ function GEF.StartEvent( eventName )
     active:BroadcastMethod( "Initialize" )
 end
 
+function GEF.StopActiveEvent()
+    local event = GEF.ActiveEvent
+    if not event then return end
+
+    event:BroadcastMethod( "Cleanup" )
+    event:Cleanup()
+end
+
 local activeSignup = false
 function GEF.StartSignup( event )
     if activeSignup then return end

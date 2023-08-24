@@ -31,3 +31,21 @@ function GEF.LoadEvents()
 end
 
 GEF.LoadEvents()
+
+if SERVER then
+    concommand.Add( "gef_reload_events", function( ply )
+        if IsValid( ply ) and not ply:IsSuperAdmin() then return end
+
+        net.Start( "GEF_ReloadEvents" )
+        net.Broadcast()
+        GEF.LoadEvents()
+
+        print( "GEF Reloaded events" )
+    end )
+end
+
+if CLIENT then
+    net.Receive( "GEF_ReloadEvents", function()
+        GEF.LoadEvents()
+    end )
+end

@@ -36,13 +36,13 @@ function EVENT:Start()
         if not self.Players[ply] then return end
         ply:StripWeapons()
 
-        timer.Simple( 0, function()
+        timer.Simple( 0.01, function()
             ply:Give( EVENT.PlayerProgression[ply] )
         end )
     end )
 
-    self:AddHook( "PlayerDeath", function( victim, _, attacker )
-        --if not self.Players[victim] then return end
+    self:AddHook( "PlayerDeath", function( _, _, attacker )
+        if not self.Players[victim] then return end
         if not self.Players[attacker] then return end
 
         self.PlayerProgression[attacker] = self.PlayerProgression[attacker] + 1
@@ -75,6 +75,8 @@ function EVENT:End()
     if SERVER then
         PrintMessage( HUD_PRINTTALK, "Gun Game event ended!" )
     end
+
+    self.PlayerProgression = {}
 
     self:Cleanup()
 end

@@ -3,6 +3,7 @@ GEF = {}
 if SERVER then
     util.AddNetworkString( "GEF_EventLoad" )
     util.AddNetworkString( "GEF_EventMethod" )
+    util.AddNetworkString( "GEF_EventEnded" )
     util.AddNetworkString( "GEF_ReloadEvents" )
 
     AddCSLuaFile( "gef/sh_eventbase.lua" )

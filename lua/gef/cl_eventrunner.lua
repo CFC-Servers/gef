@@ -1,7 +1,7 @@
 GEF.ActiveEvent = nil
 net.Receive( "GEF_EventLoad", function()
     local eventName = net.ReadString()
-    local event = GEF.LoadEvent( eventName )
+    local event = GEF.Events[eventName]
 
     GEF.ActiveEvent = event
 

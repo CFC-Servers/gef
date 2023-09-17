@@ -23,7 +23,7 @@ function GEF.LoadEvents()
     local _, folders = file.Find( "gef/events/*", "LUA" )
 
     for _, v in pairs( folders ) do
-        GEF.Events[v] = true
+        GEF.Events[v] = GEF.LoadEvent( v )
         print( "GEF Registered event: " .. v )
     end
 end

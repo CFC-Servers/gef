@@ -1,5 +1,6 @@
-EVENT.Name = "Gun Game"
+EVENT.PrintName = "Gun Game"
 EVENT.Description = "This is an example event."
+EVENT.EventDuration = 60
 EVENT.UsesTeams = false
 EVENT.WeaponProgression = {
     "m9k_minigun",
@@ -17,23 +18,30 @@ EVENT.WeaponProgression = {
 }
 EVENT.PlayerProgression = {}
 
+
 function EVENT:Initialize()
-    self:StartSignup()
+    self.BaseClass.Initialize( self )
+
+    if SERVER then
+        self:StartSimpleSignup()
+    end
 end
 
-function EVENT:Start()
+function EVENT:OnStarted()
     if CLIENT then return end
+
     PrintMessage( HUD_PRINTTALK, "Gun Game event started!" )
 
-    for ply in pairs( self.Players ) do
+    for _, ply in ipairs( self:GetPlayers() ) do
         ply:StripWeapons()
         ply:Give( self.WeaponProgression[1] )
 
         self.PlayerProgression[ply] = 1
     end
 
-    self:AddHook( "PlayerSpawn", function( ply )
-        if not self.Players[ply] then return end
+    self:HookAdd( "PlayerSpawn", "GEF_GunGame_GiveWeapons", function( ply )
+        if not self:HasStarted() then return end
+        if not self:HasPlayer( ply ) then return end
         ply:StripWeapons()
 
         timer.Simple( 0.01, function()
@@ -41,15 +49,16 @@ function EVENT:Start()
         end )
     end )
 
-    self:AddHook( "PlayerDeath", function( _, _, attacker )
-        if not self.Players[victim] then return end
-        if not self.Players[attacker] then return end
+    self:HookAdd( "PlayerDeath", "GEF_GunGame_HandleDeath", function( victim, _, attacker )
+        if not self:HasStarted() then return end
+        if not self:HasPlayer( victim ) then return end
+        if not self:HasPlayer( attacker ) then return end
 
         self.PlayerProgression[attacker] = self.PlayerProgression[attacker] + 1
         if self.PlayerProgression[attacker] > #self.WeaponProgression then
             PrintMessage( HUD_PRINTTALK, attacker:Nick() .. " has won the Gun Game event!" )
 
-            for ply in pairs( self.Players ) do
+            for _, ply in ipairs( self:GetPlayers() ) do
                 ply:Spawn()
             end
 
@@ -64,19 +73,15 @@ function EVENT:Start()
         end
     end )
 
-    timer.Simple( 60, function()
-        if not self.IsActive then return end
+    self:TimerCreate( "GEF_GunGame_EndEvent", self.EventDuration, 1, function()
         print( "Gun Game event ended!" )
+
         self:End()
     end )
 end
 
-function EVENT:End()
+function EVENT:OnEnded()
     if SERVER then
         PrintMessage( HUD_PRINTTALK, "Gun Game event ended!" )
     end
-
-    self.PlayerProgression = {}
-
-    self:Cleanup()
 end

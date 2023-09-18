@@ -1,4 +1,4 @@
-EVENT.Name = "Example Event"
+EVENT.PrintName = "Example Event"
 EVENT.Description = "This is an example event."
 EVENT.Teams = {
     {
@@ -65,7 +65,7 @@ function EVENT:Initialize( pos, ang )
     } )
 end
 
-function EVENT:Start()
+function EVENT:OnStarted()
     -- This is called when the event starts
     -- This is where you should spawn the players and do any other setup
 

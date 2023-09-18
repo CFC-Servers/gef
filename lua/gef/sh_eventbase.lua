@@ -227,6 +227,10 @@ if SERVER then
     function eventBase:StartSimpleSignup( duration, excludedPlayers )
         GEF.Signup.StartSimple( self, duration, excludedPlayers )
     end
+else
+    function eventBase:IsClientOnly()
+        return self._isClientOnly
+    end
 end
 
 

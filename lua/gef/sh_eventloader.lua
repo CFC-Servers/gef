@@ -99,6 +99,8 @@ createEvent = function( eventClass, eventName, cl_id, ... )
         net.WriteUInt( id, 32 )
         net.WriteTable( { ... } )
         net.Broadcast()
+    else
+        event._isClientOnly = type( id ) == "string"
     end
 
     event:Initialize( ... )

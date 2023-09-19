@@ -1,25 +1,19 @@
+--- @class GEF_SV_Signup
 GEF.Signup = {}
 GEF.Signup.UpcomingEvents = {}
 
+--- @class GEF_SV_Signup
 local Signup = GEF.Signup
 local UpcomingEvents = GEF.Signup.UpcomingEvents
 
 local allowedPlyLookupByEvent = {}
 
 
---[[
-    - Begins a simple signup process for players to join an event.
-    - Once the time is up, the event will automatically start.
-
-    duration: (optional) (number)
-        - How long the signup process should last for.
-        - Defaults to event.SignupDuration.
-    excludedPlayers: (optional) (Player or table of Players)
-        - Players who should not be allowed to join the event.
-        - Defaults to nil (no players are excluded).
-    showToExcludedPlayers: (optional) (bool)
-        - Whether or not excluded players should see this in their signup list, while still being unable to join.
---]]
+--- Begins a simple signup process for players to join an event.
+--- Once the time is up, the event will automatically start.
+--- @param duration number? How long the signup process should last for. Defaults to event.SignupDuration
+--- @param excludedPlayers table<Player>? Players who should not be allowed to join the event
+--- @param showToExcludedPlayers boolean? Whether or not exluded players should still be aware of this event
 function Signup.StartSimple( event, duration, excludedPlayers, showToExcludedPlayers )
     if not IsValid( event ) or not event.IsGEFEvent then error( "Expected event to be a valid GEF Event" ) end
     if duration ~= nil and type( duration ) ~= "number" then error( "Expected duration to be a number or nil" ) end
@@ -49,13 +43,12 @@ function Signup.StartSimple( event, duration, excludedPlayers, showToExcludedPla
     end
 end
 
---[[
-    - Clears an event from the signup list.
-    - Any players who were added while the event was signing up will remain in the event.
-    - Pass hidePrint as true to hide the "signup cancelled" print.
---]]
+--- Clears an event from the signup list.
+--- Any players who were added while the event was signing up will remain in the event.
+--- @param event GEF_Event
+--- @param hidePrint boolean Whether or not to hide the "signup cancelled" print
 function Signup.Stop( event, hidePrint )
-    if not IsValid( event ) or not event.IsGEFEvent then error( "Expected event to be a valid GEF Event" ) end
+    assert( IsValid( event ) and event.IsGEFEvent, "Expected event to be a valid GEF Event" )
     if not event:IsSigningUp() then return end
 
     table.RemoveByValue( UpcomingEvents, event )
@@ -69,27 +62,30 @@ function Signup.Stop( event, hidePrint )
     net.Broadcast()
 end
 
---[[
-    - Signs a player up to a listed event.
-    - Returns false if the player couldn't be added, nil if they were already signed up, or true if they were added.
---]]
+--- Signs a player up to a listed event.
+--- Returns false if the player couldn't be added, nil if they were already signed up, or true if they were added.
+--- @param event GEF_Event
+--- @param ply Player
+--- @return boolean|nil successful false: Couldn't be added | nil: Already signed up | true: Successful
 function Signup.SignUpPlayer( event, ply )
-    if not IsValid( event ) or not event.IsGEFEvent then error( "Expected event to be a valid GEF Event" ) end
+    assert( IsValid( event ) and event.IsGEFEvent, "Expected event to be a valid GEF Event" )
     if not event:IsSigningUp() then return false end
-    if not IsValid( ply ) or not ply:IsPlayer() then error( "Expected ply to be a valid player" ) end
+
+    assert( IsValid( ply ) and ply:IsPlayer(), "Expected ply to be a valid player" )
     if not allowedPlyLookupByEvent[event][ply] then return false end
 
     return event:AddPlayer( ply )
 end
 
---[[
-    - Unsigns a player from a listed event.
-    - Returns false if the player couldn't be removed, nil if they weren't signed up, or true if they were removed.
---]]
+--- Unsigns a player from a listed event.
+--- @param event GEF_Event
+--- @param ply Player
+--- @return boolean|nil successful false: Couldn't be removed | nil: Not signed up | true: Successful
 function Signup.UnsignUpPlayer( event, ply )
-    if not IsValid( event ) or not event.IsGEFEvent then error( "Expected event to be a valid GEF Event" ) end
+    assert( IsValid( event ) and event.IsGEFEvent, "Expected event to be a valid GEF Event" )
     if not event:IsSigningUp() then return false end
-    if not IsValid( ply ) or not ply:IsPlayer() then error( "Expected ply to be a valid player" ) end
+
+    assert( IsValid( ply ) and ply:IsPlayer(), "Expected ply to be a valid player" )
 
     return event:RemovePlayer( ply )
 end

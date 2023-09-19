@@ -1,3 +1,4 @@
+--- @class GEF
 GEF = {}
 
 if SERVER then
@@ -27,4 +28,5 @@ end
 include( "gef/sh_eventbase.lua" )
 include( "gef/sh_eventloader.lua" )
 
+--- @class GEF_Event
 EVENT = {}

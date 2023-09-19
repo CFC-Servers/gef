@@ -11,17 +11,18 @@ local makeEventID
 local trackEvent
 
 
---[[
-    - Creates and initializes a new event instance.
-    - The event must be loaded first, which is handled by the rest of this file.
-    - Addtional args are sent to the event's :Initialize() function.
-    - If used on SERVER:
-        - The event will be made both on SERVER and on CLIENT, with their ID's being synced.
-        - Varargs (...) will be networked to the client, so make sure they are safely networkable.
-    - If used on CLIENT:
-        - The event will be made on CLIENT only.
-        - The event will have its own clientside ID, which is of the form "cl_" .. INTEGER.
---]]
+--- Creates and initializes a new event instance.
+--- The event must be loaded first, which is handled by the rest of this file.
+---
+--- If used on SERVER:
+--- - The event will be made both on SERVER and on CLIENT, with their ID's being synced.
+--- - Varargs (...) will be networked to the client, so make sure they are safely networkable.
+---
+--- If used on CLIENT:
+--- - The event will be made on CLIENT only.
+--- - The event will have its own clientside ID, which is of the form "cl_" .. INTEGER.
+--- @param eventName string
+--- @param ... any Additional args to pass to :Initialize()
 function GEF.CreateEvent( eventName, ... )
     local eventClass = GEF.EventClasses[eventName]
     if not eventClass then error( "Could not find an event with the name " .. eventName ) end
@@ -29,7 +30,9 @@ function GEF.CreateEvent( eventName, ... )
     return eventClass:Create( ... )
 end
 
--- Loads an event class from the given folder name, but does not cache it into GEF.EventClasses.
+--- Loads an event class from the given folder name, but does not cache it into GEF.EventClasses.
+--- @param eventName string
+--- @return GEF_Event the event class
 function GEF.LoadEventClass( eventName )
     local eventClass = loadEventClassFile( eventName )
 
@@ -47,7 +50,7 @@ function GEF.LoadEventClass( eventName )
     return eventClass
 end
 
--- Loads and caches all event classes.
+--- Loads and caches all event classes.
 function GEF.LoadEventClasses()
     local _, folders = file.Find( "gef/events/*", "LUA" )
 
@@ -60,7 +63,8 @@ end
 
 ----- PRIVATE FUNCTIONS -----
 
--- include()'s the event class file.
+--- include()'s the event class file.
+--- @param eventName string
 loadEventClassFile = function( eventName )
     EVENT = {}
 
@@ -78,8 +82,12 @@ loadEventClassFile = function( eventName )
     return eventClass
 end
 
--- Creates and networks an event instance.
-createEvent = function( eventClass, eventName, cl_id, ... )
+--- Creates and networks an event instance.
+--- @param eventClass GEF_Event
+--- @param eventName string
+--- @param clientID
+--- @param ... any
+createEvent = function( eventClass, eventName, clientID, ... )
     local event = setmetatable( {}, { __index = table.Copy( eventClass ) } )
     -- NOTE: table.Copy() does not perform deep clones of Vectors and Angles, those will be passed by reference.
     -- TODO: Either document this somewhere with a warning to treat all Vectors/Angles as constants, or make a deep clone function.
@@ -88,7 +96,7 @@ createEvent = function( eventClass, eventName, cl_id, ... )
         error( ":Create() does not exist on GEF Event instances, use GEF.CreateEvent( eventName, ... ) instead." )
     end
 
-    local id = makeEventID( cl_id )
+    local id = makeEventID( clientID )
     event._id = id
 
     trackEvent( event, eventName, id )
@@ -109,15 +117,15 @@ createEvent = function( eventClass, eventName, cl_id, ... )
     return event
 end
 
--- Prepares the event class (auto-defined vars, creation function, etc).
+--- Prepares the event class (auto-defined vars, creation function, etc).
+--- @param eventClass GEF_Event
+--- @param eventName string
 prepareEventClass = function( eventClass, eventName )
     eventClass._name = eventName
 
-    --[[
-        - Creates and initializes a new event instance.
-        - Args are sent to the event's :Initialize() function.
-        - If used on SERVER, the args will also be networked to all clients, so make sure they're safely networkable values.
-    --]]
+    --- Creates and initializes a new event instance.
+    --- If used on SERVER, the args will also be networked to all clients, so make sure they're safely networkable values.
+    --- @param ... any Params passed to :Initialize
     function eventClass:Create( ... )
         local event = createEvent( eventClass, eventName, nil, ... )
 
@@ -125,21 +133,26 @@ prepareEventClass = function( eventClass, eventName )
     end
 end
 
-makeEventID = function( cl_id )
+--- @param clientID string
+--- @return string
+makeEventID = function( clientID )
     if SERVER then
         eventIncrement = eventIncrement + 1
 
         return eventIncrement
     end
 
-    if not cl_id then
+    if not clientID then
         eventIncrement = eventIncrement + 1
-        cl_id = "cl_" .. eventIncrement
+        clientID = "cl_" .. eventIncrement
     end
 
-    return cl_id
+    return clientID
 end
 
+--- @param event GEF_Event
+--- @param eventName string
+--- @param id string
 trackEvent = function( event, eventName, id )
     local eventsByType = GEF.ActiveEventsByType[eventName]
 

@@ -10,7 +10,7 @@ EVENT.WeaponProgression = {
     "m9k_m4a1",
     "m9k_m16a4_acog",
     "m9k_winchester73",
-    "m9k_ithacam37",
+    "m9k_m3",
     "m9k_1897winchester",
     "m9k_svt40",
     "m9k_psg1",

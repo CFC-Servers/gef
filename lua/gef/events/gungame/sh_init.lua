@@ -88,6 +88,7 @@ function EVENT:OnStarted()
     end )
 
     self:HookAdd( "PlayerDeath", "GEF_GunGame_HandleDeath", function( victim, _, attacker )
+        if victim == attacker then return end
         if not self:HasStarted() then return end
         if not self:HasPlayer( victim ) then return end
         if not self:HasPlayer( attacker ) then return end

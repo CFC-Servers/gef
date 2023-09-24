@@ -112,6 +112,19 @@ function EVENT:OnStarted()
         end )
     end )
 
+    self:HookAdd( "PlayerCanPickupWeapon", "GEF_GunGame_BlockOtherWeapons", function( ply, wep )
+        if not IsValid( ply ) then return end
+        if not IsValid( wep ) then return end
+
+        return self:_BlockWeaponHook( ply, wep:GetClass() )
+    end )
+
+    self:HookAdd( "PlayerSpawnSWEP", "GEF_GunGame_BlockOtherWeapons", function( ply, wepClass )
+        if not IsValid( ply ) then return end
+
+        return self:_BlockWeaponHook( ply, wepClass )
+    end )
+
     self:TimerCreate( "GEF_GunGame_EndEvent", self.EventDuration, 1, function()
         print( "Gun Game event ended!" )
 
@@ -129,4 +142,12 @@ function EVENT:OnEnded()
     end
 
     PrintMessage( HUD_PRINTTALK, "Gun Game event ended!" )
+end
+
+
+----- PRIVATE FUNCTIONS -----
+
+function EVENT:_BlockWeaponHook( ply, wepClass )
+    if not self:HasPlayer( ply ) then return end
+    if wepClass ~= self:GetPlayerWeaponClass( ply ) then return false end
 end

@@ -136,6 +136,11 @@ end
 function EVENT:OnEnded()
     if CLIENT then return end
 
+    -- Don't block weapons anymore, since we're about to respawn everyone before the event cleanup happens.
+    self:HookRemove( "PlayerSpawn", "GEF_GunGame_GiveWeapons" )
+    self:HookRemove( "PlayerCanPickupWeapon", "GEF_GunGame_BlockOtherWeapons" )
+    self:HookRemove( "PlayerSpawnSWEP", "GEF_GunGame_BlockOtherWeapons" )
+
     for _, ply in ipairs( self:GetPlayers() ) do
         if IsValid( ply ) and ply:Alive() then
             ply:Spawn()

@@ -79,11 +79,10 @@ function EVENT:OnStarted()
         if not self:HasStarted() then return end
         if not self:HasPlayer( ply ) then return end
 
-        ply:StripWeapons()
-
         timer.Simple( 0.01, function()
             if not IsValid( ply ) then return end
 
+            ply:StripWeapons()
             ply:Give( self:GetPlayerWeaponClass( ply ) )
         end )
     end )
@@ -124,7 +123,7 @@ function EVENT:OnEnded()
     if CLIENT then return end
 
     for _, ply in ipairs( self:GetPlayers() ) do
-        if IsValid( ply ) then
+        if IsValid( ply ) and ply:Alive() then
             ply:Spawn()
         end
     end

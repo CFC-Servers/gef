@@ -58,7 +58,7 @@ local startSignup = function( event, duration, allowedPlys )
     table.insert( UpcomingEvents, event )
 
     -- TEMP MESSAGE (TODO: Make better, account for disallowed events, add util for time formatting)
-    LocalPlayer():ChatPrint( HUD_PRINTTALK, event:GetPrintName() .. " is starting in " .. duration .. " seconds! Type !join to join the event!" )
+    LocalPlayer():ChatPrint( event:GetPrintName() .. " is starting in " .. duration .. " seconds! Type !join to join the event!" )
 
     -- TODO: vgui panel stuff (should make use of allowedPlys for showing a player list and allowedPlyLookup for greying out disallowed events)
 end
@@ -74,7 +74,7 @@ local stopSignup = function( event, hidePrint )
     if hidePrint then return end
 
     -- TEMP MESSAGE
-    LocalPlayer():ChatPrint( HUD_PRINTTALK, event:GetPrintName() .. " can no longer be signed up to!" )
+    LocalPlayer():ChatPrint( event:GetPrintName() .. " can no longer be signed up to!" )
 end
 
 hook.Add( "GEF_EventEnded", "GEF_Signup_CancelSignup", function( event )

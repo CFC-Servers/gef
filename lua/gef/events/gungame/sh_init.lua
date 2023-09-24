@@ -1,6 +1,6 @@
 EVENT.PrintName = "Gun Game"
 EVENT.Description = "This is an example event."
-EVENT.EventDuration = 60
+EVENT.EventDuration = 5 * 60
 EVENT.UsesTeams = false
 EVENT.WeaponProgression = {
     "m9k_minigun",

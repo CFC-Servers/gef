@@ -12,6 +12,7 @@ local AirstrikeClass = {}
 --- @field _wobbleVec Vector Internal use, optimization
 --- @field randomness number
 --- @field reversed boolean
+--- @field spawned boolean
 
 --- Tracking table for the current missiles
 --- @type table<AirstrikeMissile>
@@ -51,6 +52,7 @@ function AirstrikeClass:MakeMissile( target, spawnPos )
         _wobbleVec = Vector( 0, 0, 0 ),
         randomness = math.random( 7, 15 ),
         reversed = math.random( 1, 2 ) == 1,
+        spawned = false,
     }
 
     table.insert( self.Missiles, missile )
@@ -66,6 +68,7 @@ do
     --- @param struct AirstrikeMissile
     function AirstrikeClass:MissileThink( struct )
         local missile = struct.ent
+        if not struct.spawned then return end
 
         local targetPos
         local targetEnt = struct.target
@@ -166,7 +169,6 @@ function AirstrikeClass:Start( targets, center, count, damage, scale )
     end
 
     local ceiling = GEF.Utils.GetCeiling( center )
-    print( "Creating: ", count, "airstrike missiles for", #targets, "targets" )
 
     for i = 1, count do
         local target = selected[i]
@@ -174,14 +176,29 @@ function AirstrikeClass:Start( targets, center, count, damage, scale )
     end
 
     -- With all the handlers in place, now we actually spawn the missiles
-    print( "SV: Spawning missiles" )
     local missiles = self.Missiles
     local missileCount = #self.Missiles
-    for i = 1, missileCount do
-        local missile = missiles[i]
-        missile.ent:Spawn()
-        missile.ent:SetSaveValue( "m_flDamage", damage or 100 )
-        missile.ent:SetSaveValue( "m_flModelScale", scale or 1 )
+
+    local iteration = 0
+    local iterations = 20
+    local perIteration = math.ceil( missileCount / iterations )
+
+    -- We spawn them in up to 20 waves for a "bombardment" effect
+    for t = 0, (iterations - 1) do
+        local startIdx = (t * perIteration) + 1
+        local stopIdx = math.min( missileCount, startIdx + perIteration - 1 )
+
+        timer.Simple( t * 0.15, function()
+            for i = startIdx, stopIdx do
+                local missile = missiles[i]
+                missile.ent:Spawn()
+                missile.ent:SetSaveValue( "m_flDamage", damage or 100 )
+                missile.ent:SetSaveValue( "m_flModelScale", scale or 1 )
+                missile.spawned = true
+            end
+        end )
+
+        iteration = iteration + 1
     end
 end
 

@@ -188,7 +188,7 @@ function EVENT:OnStarted()
         PrintMessage( HUD_PRINTTALK, "AIRSTRIKE STARTING" )
 
         local npcs = table.GetKeys( NPCs )
-        self.Airstrike:Start( npcs, self.Origin, #npcs / 3 )
+        self.Airstrike:Start( npcs, self.Origin, #npcs / 2, 800, 3 )
 
         self:HookAdd( "Think", "Airstrike", function()
             self.Airstrike:Think()

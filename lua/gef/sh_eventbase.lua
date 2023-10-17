@@ -125,8 +125,8 @@ end
 --- Adjusts the given event timer
 --- @param timerName string
 --- @param delay number
---- @param repetitions number
---- @param callback function
+--- @param repetitions number?
+--- @param callback function?
 --- @return nil
 function eventBase:TimerAdjust( timerName, delay, repetitions, callback )
     if type( timerName ) ~= "string" then error( "Expected timerName to be a string" ) end
@@ -144,7 +144,6 @@ function eventBase:TimerExists( timerName )
 end
 
 --- Tells clients to run a method on the event instance with the given arguments.
---- - Does nothing on CLIENT.
 --- @param methodName string
 --- @param ... any
 --- @return nil
@@ -158,12 +157,40 @@ function eventBase:BroadcastMethod( methodName, ... )
     net.Broadcast()
 end
 
+--- Tells all current event players to run a method on the event instance with the given arguments.
+--- @param methodName string
+--- @param ... any
+--- @return nil
+function eventBase:BroadcastMethodToPlayers( methodName, ... )
+    if CLIENT then return end
+
+    net.Start( "GEF_EventMethod" )
+    net.WriteUInt( self:GetID(), 32 )
+    net.WriteString( methodName )
+    net.WriteTable( { ... } )
+    net.Send( self:GetPlayers() )
+end
+
+--- Tells the specified Client to run a method on the event instance with the given arguments.
+--- @param methodName string
+--- @param ... any
+--- @return nil
+function eventBase:SendMethod( ply, methodName, ... )
+    if CLIENT then return end
+
+    net.Start( "GEF_EventMethod" )
+    net.WriteUInt( self:GetID(), 32 )
+    net.WriteString( methodName )
+    net.WriteTable( { ... } )
+    net.Send( ply )
+end
+
 --- Adds a player to the Event
 --- @param ply Player
 --- @return boolean successful True if successful, False if they were already in the event
 function eventBase:AddPlayer( ply )
     if self:HasPlayer( ply ) then return false end
-    assert( IsValid( ply ) and ply:IsPlayer(), "Expected ply to be a valid player" )
+    assert( ply and ply:IsValid() and ply:IsPlayer(), "Expected ply to be a valid player" )
 
     table.insert( self._players, ply )
     self._playerLookup[ply] = true
@@ -203,6 +230,27 @@ end
 --- @return table<Player>
 function eventBase:GetPlayers()
     return self._players
+end
+
+--- Gets all players who have not signed up for the event
+--- @return table<Player>
+function eventBase:GetAbsent()
+    local table_insert = table.insert
+    local playerLookup = self._playerLookup
+
+    local absent = {}
+    local all = player.GetAll()
+
+    local plyCount = #all
+    for i = 1, plyCount do
+        local ply = all[i]
+
+        if not playerLookup[ply] then
+            table_insert( absent, ply )
+        end
+    end
+
+    return absent
 end
 
 --- Checks if the Event is in the Signup Phase
@@ -254,6 +302,7 @@ if SERVER then
     --- @param duration? number How long the signup process should last for
     --- @param excludedPlayers? table<Player> Players who should not be allowed to join the event
     function eventBase:StartSimpleSignup( duration, excludedPlayers )
+        print( "SV: StartSimpleSignup" )
         GEF.Signup.StartSimple( self, duration, excludedPlayers )
     end
 else
@@ -309,24 +358,23 @@ end
 --- @param name string
 --- @return string
 getListenerName = function( event, name )
-    return name .. "_" .. event:GetInstanceName()
+    return "GEF_" .. event:GetInstanceName() .. "_" .. name
 end
 
---- @param event GEF_Event
-cleanupEvent = function( event )
-    for hookName, listeners in pairs( event._hookListeners ) do
+function eventBase:Cleanup()
+    for hookName, listeners in pairs( self._hookListeners ) do
         for listenerName in pairs( listeners ) do
             hook.Remove( hookName, listenerName )
         end
     end
 
-    for timerName in pairs( event._timers ) do
+    for timerName in pairs( self._timers ) do
         timer.Remove( timerName )
     end
 
-    table.Empty( event )
+    table.Empty( self )
 
-    setmetatable( event, {
+    setmetatable( self, {
         IsValid = function()
             return false
         end,

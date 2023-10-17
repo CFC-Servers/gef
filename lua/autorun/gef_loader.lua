@@ -1,3 +1,10 @@
+if GEF then
+    for _, event in ipairs( GEF.ActiveEvents ) do
+        print( "Cleaning up existing event:", event:GetID() )
+        event:Cleanup()
+    end
+end
+
 --- @class GEF
 GEF = {}
 
@@ -19,6 +26,7 @@ include( "gef/sh_utils.lua" )
 
 if SERVER then
     include( "gef/sv_signup.lua" )
+    include( "gef/modules/sv_airstrike.lua" )
 end
 
 if CLIENT then

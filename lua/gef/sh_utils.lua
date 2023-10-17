@@ -96,3 +96,17 @@ function Utils.GetCeiling( pos )
 
     return tr.HitPos[3]
 end
+
+--- Returns a copy of the input table with wraparound indexing
+--- i.e. tbl[#tbl + 1] == tbl[1]
+--- @param tbl table<any>
+function Utils.CircularTable( tbl )
+    return setmetatable( table.Copy( tbl ), {
+        __index = function( _, key )
+            local size = #tbl
+            key = ((key - 1) % size) + 1
+
+            return tbl[key]
+        end
+    } )
+end

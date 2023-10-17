@@ -118,13 +118,10 @@ do
 end
 
 function AirstrikeClass:Think()
-    local table_insert = table.insert
-    local table_remove = table.remove
-
     local missiles = self.Missiles
     local missileCount = #missiles
 
-    local toRemove = {}
+    local deadCount = 0
 
     for i = 1, missileCount do
         local struct = missiles[i]
@@ -133,16 +130,11 @@ function AirstrikeClass:Think()
         if missile:IsValid() then
             self:MissileThink( struct )
         else
-            table_insert( toRemove, i )
+            deadCount = deadCount + 1
         end
     end
 
-    -- Remove the ones that are gone
-    for i = #toRemove, 1, -1 do
-        table_remove( missiles, toRemove[i] )
-    end
-
-    if #missiles == 0 then
+    if deadCount == missileCount then
         return false
     end
 
@@ -156,21 +148,32 @@ end
 --- @param damage number? How much damage (and how much amplitude) the explosions have
 --- @param scale number? The visual scale of the missiles
 function AirstrikeClass:Start( targets, center, count, damage, scale )
-    assert( #targets > 0, "Why aren't there any entities to shoot?" )
+    local targetsCount = #targets
+    assert( targetsCount > 0, "Why aren't there any entities to shoot?" )
 
-    count = count or #targets
-    local selected = GEF.Utils.PickRandom( targets, count )
-    local selectedCount = #selected
+    count = count or targetsCount
 
-    -- If we want more missiles than we have objects,
-    -- we use a circular table to keep looping over the same objects
-    if selectedCount < count then
-        selected = GEF.Utils.CircularTable( selected )
+    local limit
+    local selected
+
+    if count < targetsCount then
+        -- Select a randon set of targets to shoot missiles at
+        selected = GEF.Utils.PickRandom( targets, count )
+        limit = #selected
+    elseif count == targetsCount then
+        -- If we send 1 missile to each target, we can just loop over the targets
+        selected = targets
+        limit = targetsCount
+    else
+        -- If we want more missiles than we have objects,
+        -- we use a circular table to keep looping over the same objects
+        selected = GEF.Utils.CircularTable( targets )
+        limit = count
     end
 
     local ceiling = GEF.Utils.GetCeiling( center )
 
-    for i = 1, count do
+    for i = 1, limit do
         local target = selected[i]
         self:MakeMissile( target, getSpawnPos( target, ceiling ) )
     end
@@ -180,7 +183,7 @@ function AirstrikeClass:Start( targets, center, count, damage, scale )
     local missileCount = #self.Missiles
 
     local iteration = 0
-    local iterations = 20
+    local iterations = math.min( missileCount, 20 )
     local perIteration = math.ceil( missileCount / iterations )
 
     -- We spawn them in up to 20 waves for a "bombardment" effect

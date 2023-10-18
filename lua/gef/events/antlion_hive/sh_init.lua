@@ -4,10 +4,11 @@ AddCSLuaFile( "cl_init.lua" )
 EVENT.PrintName = "Antlion Hive!"
 EVENT.Description = "A horde of Antlions is erupting from somewhere on the map!"
 EVENT.UsesTeams = false
-EVENT.Origin = Vector (-1650.3996582031, 10371.4453125, -12629.30859375)
+-- EVENT.Origin = Vector (-1650.3996582031, 10371.4453125, -12629.30859375)
+EVENT.Origin = Vector (5352.0966796875, 6462.36328125, -11135.96875)
 
 --- The total duration of the event
-EVENT.EventDuration = 5 * 60
+EVENT.EventDuration = 0.6 * 60
 
 --- The current Wave Number
 EVENT.WaveNumber = 0
@@ -28,14 +29,18 @@ function EVENT:Cleanup()
     self:TimerRemove( "EndEvent" )
     self:TimerRemove( "WaveSpawn" )
     self:TimerRemove( "ScoreSorter" )
+    self:TimerRemove( "SpawnShooters" )
     self:TimerRemove( "StartAirstrike" )
+
     self:HookRemove( "Think", "Airstrike" )
+    self:HookRemove( "Think", "ShooterMovement" )
     self:HookRemove( "PreDrawHalos", "Halos" )
     self:HookRemove( "PostDrawTranslucentRenderables", "Scoreboard" )
     self:HookRemove( "OnNPCKilled", "CountKills" )
 
     if SERVER then
         self:DestroyNPCs()
+        self:DestroyShooters()
     end
 end
 

@@ -189,6 +189,12 @@ function EVENT:OnStarted()
     end
     self:TimerCreate( "WaveSpawn", initialDelay, 1, spawnAndAdjust )
 
+    local shooters
+    self:TimerCreate( "SpawnShooters", eventDuration - 10, 1, function()
+        print( "Spawning shooters" )
+        shooters = self:SpawnShooters( 5, 4000 )
+    end )
+
     self:TimerCreate( "StartAirstrike", eventDuration, 1, function()
         spawning = false
         self:TimerRemove( "WaveSpawn" )
@@ -196,7 +202,7 @@ function EVENT:OnStarted()
         PrintMessage( HUD_PRINTTALK, "AIRSTRIKE STARTING" )
 
         local npcs = table.GetKeys( NPCs )
-        self.Airstrike:Start( npcs, self.Origin, #npcs / 2, 800, 3 )
+        self.Airstrike:Start( npcs, self.Origin, #npcs * 3, 800, 0.85, shooters )
 
         self:HookAdd( "Think", "Airstrike", function()
             self.Airstrike:Think()
@@ -216,3 +222,4 @@ function EVENT:DestroyNPCs()
     end
 end
 
+include( "sv_shooters.lua" )

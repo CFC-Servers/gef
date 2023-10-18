@@ -12,7 +12,6 @@ eventBase.__index = eventBase
 eventBase._signingUp = false
 
 local getListenerName
-local cleanupEvent
 
 --- Starts the event, which calls :OnStarted() and the GEF_EventStarted hook.
 --- @return nil
@@ -45,8 +44,6 @@ function eventBase:End()
     self:BroadcastMethod( "End" )
 
     hook.Run( "GEF_EventEnded", self )
-
-    cleanupEvent( self )
 end
 
 --- Equivalent to hook.Add( hookName, listenerName, callback )

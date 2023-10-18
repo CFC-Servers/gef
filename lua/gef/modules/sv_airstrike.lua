@@ -18,13 +18,19 @@ local AirstrikeClass = {}
 --- @type table<AirstrikeMissile>
 AirstrikeClass.Missiles = {}
 
---- Minimum number of missiles to shoot
-AirstrikeClass.MinMissiles = 10
-
 --- Gets the initial spawn position for a missile
 --- @param target Entity
 --- @param ceiling number
-local function getSpawnPos( target, ceiling )
+--- @param origins table<Entity>
+local function getSpawnPos( target, ceiling, origins )
+    local originCount = #origins
+    if originCount > 0 then
+        local origin = origins[math.random( originCount )]
+        if origin:IsValid() then
+            return origin:GetPos()
+        end
+    end
+
     local entPos = target:GetPos()
     local spawnPos = entPos + VectorRand( -3000, 3000 )
     spawnPos[3] = ceiling * math.Rand( 0.90, 0.98 )
@@ -34,12 +40,10 @@ end
 
 --- Makes a new missile aimed at the given target
 --- @param target Entity
---- @param spawnPos Vector
-function AirstrikeClass:MakeMissile( target, spawnPos )
+function AirstrikeClass:MakeMissile( target )
     local math_Rand = math.Rand
 
     local ent = ents.Create( "rpg_missile" )
-    ent:SetPos( spawnPos )
     ent.GEF_AntlionHive_AirstrikeMissile = true
 
     local missile = {
@@ -47,7 +51,8 @@ function AirstrikeClass:MakeMissile( target, spawnPos )
         target = target,
         ang = 0,
         angSpeed = 0.015,
-        forwardSpeed = math_Rand( 3500, 4250 ),
+        -- forwardSpeed = math_Rand( 3500, 4250 ),
+        forwardSpeed = math_Rand( 1350, 1600 ),
         wobble = math_Rand( 1800, 2850 ),
         _wobbleVec = Vector( 0, 0, 0 ),
         randomness = math.random( 7, 15 ),
@@ -147,9 +152,12 @@ end
 --- @param count number? How many of the targets to shoot missiles at (if larger than the length of the table, multiple missiles will fire at the same target)
 --- @param damage number? How much damage (and how much amplitude) the explosions have
 --- @param scale number? The visual scale of the missiles
-function AirstrikeClass:Start( targets, center, count, damage, scale )
+--- @param origins table<Entity>? A table of Entities for the missiles to originate from
+function AirstrikeClass:Start( targets, center, count, damage, scale, origins )
     local targetsCount = #targets
     assert( targetsCount > 0, "Why aren't there any entities to shoot?" )
+
+    origins = origins or {}
 
     count = count or targetsCount
 
@@ -175,7 +183,7 @@ function AirstrikeClass:Start( targets, center, count, damage, scale )
 
     for i = 1, limit do
         local target = selected[i]
-        self:MakeMissile( target, getSpawnPos( target, ceiling ) )
+        self:MakeMissile( target )
     end
 
     -- With all the handlers in place, now we actually spawn the missiles
@@ -194,9 +202,13 @@ function AirstrikeClass:Start( targets, center, count, damage, scale )
         timer.Simple( t * 0.15, function()
             for i = startIdx, stopIdx do
                 local missile = missiles[i]
-                missile.ent:Spawn()
-                missile.ent:SetSaveValue( "m_flDamage", damage or 100 )
-                missile.ent:SetSaveValue( "m_flModelScale", scale or 1 )
+                local ent = missile.ent
+
+                ent:SetPos( getSpawnPos( missile.target, ceiling, origins ) )
+                ent:Spawn()
+                ent:SetSaveValue( "m_flDamage", damage or 100 )
+                ent:SetSaveValue( "m_flModelScale", scale or 1 )
+                ent:SetCollisionGroup( COLLISION_GROUP_WORLD )
                 missile.spawned = true
             end
         end )

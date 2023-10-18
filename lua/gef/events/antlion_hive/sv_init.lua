@@ -20,23 +20,18 @@ EVENT.Kills = {}
 
 --- @param npc NPC
 function EVENT:AddNPC( npc )
-    print( "SV: AddNPC", npc )
     self.NPCs[npc] = true
-    self:BroadcastMethodToPlayers( "AddNPC", npc )
 end
 
 --- @param npc NPC
 function EVENT:RemoveNPC( npc )
-    print( "SV: RemoveNPC", npc )
     self.NPCs[npc] = nil
-    self:BroadcastMethodToPlayers( "RemoveNPC", npc )
 end
 
 --- Increments the kill count by 1 for the given player
 --- @param ply Player
 --- @return number killCount The new kill count for the player
 function EVENT:IncrementKills( ply )
-    print( "SV: IncrementKills", ply )
     local kills = self.Kills
 
     local new = kills[ply] + 1
@@ -48,7 +43,6 @@ end
 --- Increments and broadcasts the kill count for the given player
 --- @param ply Player
 function EVENT:AddKill( ply )
-    print( "SV: AddKill", ply )
     local new = self:IncrementKills( ply )
     self:BroadcastMethodToPlayers( "SetKills", ply, new )
 end
@@ -65,7 +59,7 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
     local waveNumber = self.WaveNumber
 
     local npc = ents.Create( "npc_antlion" )
-    -- npc:SetSaveValue( "startburrowed", true )
+    npc:SetSaveValue( "startburrowed", true )
     npc:SetSaveValue( "skin", math.random( 0, 3 ) )
     npc:SetSaveValue( "squadname", squadName )
     npc:SetSaveValue( "wakesquad", true )
@@ -73,7 +67,6 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
     npc:SetSaveValue( "unburroweffects", true )
     npc:SetSaveValue( "ignoreunseenenemies", true )
     npc:SetSaveValue( "spawnflags", bit.bor( SF_NPC_FADE_CORPSE, SF_NPC_GAG ) )
-    npc:SetSaveValue( "max_health", 60 + ( waveNumber * 2 ) )
 
     local spawnPos = waveCenter + VectorRand( -150, 150 )
     spawnPos[3] = waveCenter[3] + 500
@@ -83,9 +76,19 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
     if canSpawn == false then return end
 
     npc:Spawn()
-    -- timer.Simple( math.random() * 2, function()
-    --     npc:Fire( "unburrow" )
-    -- end )
+    npc:Activate()
+    npc:SetHealth( 30 + ( waveNumber * 1.25 ) )
+
+    timer.Simple( math.random() * 2, function()
+        npc:Fire( "unburrow" )
+
+        timer.Simple( 1, function()
+            if not npc:IsValid() then return end
+            if npc:IsInWorld() then return end
+
+            npc:Remove()
+        end )
+    end )
 
     npc:CallOnRemove( "GEF_AntlionHive_Cleanup", function()
         self:RemoveNPC( npc )
@@ -148,7 +151,6 @@ function EVENT:OnStarted()
     local Kills = self.Kills
 
     self:HookAdd( "OnNPCKilled", "CountKills", function( npc, attacker )
-        print( npc, attacker )
         if not NPCs[npc] then return end
         if not attacker:IsPlayer() then return end
 
@@ -159,12 +161,10 @@ function EVENT:OnStarted()
             self:AddKill( attacker )
         else
             -- If this player is jumping in halfway through, add them and send them all the data they need
-            print( "Player wasn't involved, but got an Antlion kill. Patching them in", attacker )
             self:AddPlayer( attacker )
 
-            self:IncrementKills( attacker )
+            self:AddKill( attacker )
             self:SendMethod( attacker, "SetAllKills", Kills )
-            self:SendMethod( attacker, "SetAllNPCs", NPCs )
         end
     end )
 
@@ -203,7 +203,6 @@ function EVENT:OnStarted()
         end )
 
         self:TimerCreate( "EndEvent", 25, 1, function()
-            print( "Antlion event ended!" )
             self:End()
         end )
     end )

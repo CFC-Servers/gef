@@ -21,9 +21,16 @@ surface.CreateFont( "GEF_AntlionHive_ScoreFont_Bold", {
     weight = 900
 } )
 
+surface.CreateFont( "GEF_AntlionHive_ScoreFont_Header", {
+    font = "Trebuchet MS",
+    size = 38,
+    weight = 900
+} )
+
 
 function EVENT:ShowScoreboard()
     local me = LocalPlayer()
+    local kills = self.Kills
     local killsData = self.KillsData
 
     local function sorter( a, b )
@@ -85,6 +92,8 @@ function EVENT:ShowScoreboard()
 
     local scoreBackground = Color( 0, 0, 0, 200 )
 
+    local exclamation = Material( "icon16/exclamation.png" )
+
     local function drawBoard( color )
         local w = 400
         local h = 600
@@ -94,11 +103,17 @@ function EVENT:ShowScoreboard()
         -- Draw outer rectangle with rounded corners
         draw_RoundedBox( 25, x, y, w, h, color )
 
+        surface.SetDrawColor( 255, 255, 255, 255 )
+        surface.SetMaterial( exclamation )
+        surface.DrawTexturedRect( x + w * 0.05, y + (h * 0.031), 22, 22 )
+
         -- Draw Header
+        surface_SetFont( "GEF_AntlionHive_ScoreFont_Header" )
+        surface_SetTextColor( 255, 85, 85, 255 )
+        surface_SetTextPos( x + w * 0.05 + 35, y + (h * 0.016) )
+        surface_DrawText( "Antlion Attack!" )
+
         surface_SetFont( "GEF_AntlionHive_ScoreFont" )
-        surface_SetTextColor( 255, 255, 255, 255 )
-        surface_SetTextPos( x + w * 0.05, y + (h * 0.016) )
-        surface_DrawText( "Antlion Hive Score" )
 
         local yOffset = h * 0.1
 
@@ -113,10 +128,11 @@ function EVENT:ShowScoreboard()
             yOffset = yOffset + (h * 0.0833)
         end
 
-        local myData = killsData[me]
+        local myData = kills[me]
         if not myData then return end
 
         -- Draw personal score
+        surface_SetTextColor( 255, 255, 255, 255 )
         surface_SetTextPos( x + w * 0.05, y + (h * 0.016) + (h * 0.916) )
         surface_DrawText( "You: " .. myData.count )
     end
@@ -134,6 +150,7 @@ function EVENT:ShowScoreboard()
     local spinAngle = Angle( 180, 0, -90 )
     local fadedBackground = Color( 0, 0, 0, 50 )
 
+    local ang = Angle( 0, 0, 0 )
     self:HookAdd( "PostDrawTranslucentRenderables", "Scoreboard", function( _, skybox, skybox3d )
         if skybox3d then return end
 
@@ -153,22 +170,26 @@ function EVENT:ShowScoreboard()
         local z = Lerp( fraction, minZ, maxZ )
         vertOffset:SetUnpacked( 0, 0, z )
 
+        -- Orient the board correctly
         local pos = origin + vertOffset
         local dirToBoard = (pos - ply:GetPos()):GetNormalized()
         local plyForward = ply:EyeAngles():Forward()
 
-        local ang
         local looking = false
+        local smoothing = 0.25
+
+        -- As the player gets farther away, the "aim" window for the panel gets smaller
         local scaledDot = Lerp( fraction, minDot, maxDot )
 
         -- Face towards the player
         if dirToBoard:Dot( plyForward ) > scaledDot then
-            ang = (ply:GetPos() - pos):Angle()
-            ang:RotateAroundAxis( ang:Forward(), 90 )
-            ang:RotateAroundAxis( ang:Right(), -90 )
+            local newAng = (ply:GetPos() - pos):Angle()
+            newAng:RotateAroundAxis( newAng:Forward(), 90 )
+            newAng:RotateAroundAxis( newAng:Right(), -90 )
             looking = true
 
             -- Limit how much the panel can "tilt" up and down to face the player
+            ang = LerpAngle( smoothing, ang, newAng )
             ang.roll = math_Clamp( ang.roll, 50, 110 )
         else
             -- Do spinny animation
@@ -181,7 +202,7 @@ function EVENT:ShowScoreboard()
             end
 
             spinAngle:SetUnpacked( 180, yaw, -90 )
-            ang = spinAngle
+            ang = LerpAngle( smoothing, ang, spinAngle )
         end
 
         -- It gets bigger when you get farther away

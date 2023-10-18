@@ -147,10 +147,11 @@ function EVENT:ShowScoreboard()
     local maxDistance = 4000
 
     local vertOffset = Vector( 0, 0, 0 )
-    local spinAngle = Angle( 180, 0, -90 )
     local fadedBackground = Color( 0, 0, 0, 50 )
 
-    local ang = Angle( 0, 0, 0 )
+    local totalYaw = 0
+    local ang = Angle( 180, 0, -90 )
+    local spinAngle = Angle( 180, 0, -90 )
     self:HookAdd( "PostDrawTranslucentRenderables", "Scoreboard", function( _, skybox, skybox3d )
         if skybox3d then return end
 
@@ -193,16 +194,25 @@ function EVENT:ShowScoreboard()
             ang.roll = math_Clamp( ang.roll, 50, 110 )
         else
             -- Do spinny animation
-            local yaw = CurTime() * 10 % 360
+            local yaw = ((CurTime() * 10) + totalYaw) % 360
 
             -- Make sure the player only sees the text side
             local visibleSide = dirToBoard:Dot( spinAngle:Up() )
-            if visibleSide == 0 then
-                yaw = yaw + 180
-            end
+            if visibleSide >= 0 then
+                print( "Flipping", yaw, visibleSide )
 
-            spinAngle:SetUnpacked( 180, yaw, -90 )
-            ang = LerpAngle( smoothing, ang, spinAngle )
+                yaw = yaw + 180
+                spinAngle.yaw = yaw
+                ang:Set( spinAngle )
+
+                totalYaw = totalYaw + 180
+                if totalYaw == 360 then
+                    totalYaw = 0
+                end
+            else
+                spinAngle.yaw = yaw
+                ang = LerpAngle( smoothing, ang, spinAngle )
+            end
         end
 
         -- It gets bigger when you get farther away

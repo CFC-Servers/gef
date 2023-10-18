@@ -195,7 +195,7 @@ function EVENT:ShowScoreboard()
     local Lerp = Lerp
     local CurTime = CurTime
 
-    local minScale, maxScale = 1, 2.5
+    local minScale, maxScale = 0.4, 2.5
     local minDot, maxDot = 0.92, 0.999
     local minZ, maxZ = 335, 925
 

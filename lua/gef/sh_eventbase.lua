@@ -131,6 +131,13 @@ function eventBase:TimerAdjust( timerName, delay, repetitions, callback )
     return timer.Adjust( getListenerName( self, timerName ), delay, repetitions, callback )
 end
 
+--- Starts the given timer
+--- @param timerName string
+--- @return nil
+function eventBase:TimerStart( timerName )
+    return timer.Start( getListenerName( self, timerName ) )
+end
+
 --- Checks if the given timer exists for the event
 --- @param timerName string
 --- @return boolean

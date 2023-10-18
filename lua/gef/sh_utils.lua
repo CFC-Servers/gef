@@ -110,3 +110,25 @@ function Utils.CircularTable( tbl )
         end
     } )
 end
+
+--- Evenly distributes the elements into each of the groups
+--- @param groups table<any>
+--- @param elements table<any>
+function Utils.DistributeElements( groups, elements )
+    local distribution = {}
+    local group_count = #groups
+    local index = 1
+
+    for _, group in ipairs( groups ) do
+        distribution[group] = {}
+    end
+
+    local elementCount = #elements
+    for i = 1, elementCount do
+        local element = elements[i]
+        table.insert( distribution[groups[index]], element )
+        index = index % group_count + 1
+    end
+
+    return distribution
+end

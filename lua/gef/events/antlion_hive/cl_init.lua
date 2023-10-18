@@ -1,7 +1,5 @@
-local table_insert = table.insert
-local table_remove = table.remove
-
 include( "cl_ui.lua" )
+include( "cl_lasers.lua" )
 
 --- @class AntlionHive_PlayerKills
 --- @field nick string

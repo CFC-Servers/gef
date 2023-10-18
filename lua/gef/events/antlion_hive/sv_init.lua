@@ -190,16 +190,33 @@ function EVENT:OnStarted()
     self:TimerCreate( "WaveSpawn", initialDelay, 1, spawnAndAdjust )
 
     local shooters
+
+    -- Shooters are spawned 10s before the event ends
     self:TimerCreate( "SpawnShooters", eventDuration - 10, 1, function()
         print( "Spawning shooters" )
         shooters = self:SpawnShooters( 5, 4000 )
+
+        local rawNPCs = table.GetKeys( self.NPCs )
+        local grouped = GEF.Utils.DistributeElements( shooters, rawNPCs )
+
+        for group, targets in pairs( grouped ) do
+            self:BroadcastMethodToPlayers( "AddLaserGroup", group, targets )
+        end
+
+        -- All players should visually see all locks within 8s
+        local finishLockingIn = 8
+        self:BroadcastMethodToPlayers( "StartLasers", finishLockingIn )
     end )
 
+    -- The airstrike occurs at the very end of the duration
     self:TimerCreate( "StartAirstrike", eventDuration, 1, function()
         spawning = false
         self:TimerRemove( "WaveSpawn" )
 
         PrintMessage( HUD_PRINTTALK, "AIRSTRIKE STARTING" )
+
+        -- Airstrike is beginning, lasers turn off
+        self:BroadcastMethodToPlayers( "StopLasers" )
 
         local npcs = table.GetKeys( NPCs )
         self.Airstrike:Start( npcs, self.Origin, #npcs * 3, 800, 0.85, shooters )

@@ -15,6 +15,9 @@ EVENT.PeakDelay = 0.15
 -- On server, it's a lookup table so we can just keep track of the current ones
 EVENT.NPCs = {}
 
+--- @type table<Player, number>
+EVENT.Kills = {}
+
 --- @param npc NPC
 function EVENT:AddNPC( npc )
     print( "SV: AddNPC", npc )
@@ -73,7 +76,7 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
     npc:SetSaveValue( "max_health", 60 + ( waveNumber * 2 ) )
 
     local spawnPos = waveCenter + VectorRand( -150, 150 )
-    spawnPos[3] = waveCenter[3] + 100
+    spawnPos[3] = waveCenter[3] + 500
     npc:SetPos( spawnPos )
 
     local canSpawn = hook.Run( "GEF_AntlionHive_AntlionSpawn", npc )
@@ -120,7 +123,7 @@ function EVENT:SpawnWave()
 
     for _ = 1, self.GroupsPerWave do
         local waveCenter = origin + VectorRand( -900, 900 )
-        waveCenter[3] = waveCenter[3]
+        waveCenter[3] = origin[3]
 
         local squadName = "antlions_" .. ID .. "_" .. waveNumber
 
@@ -131,6 +134,11 @@ function EVENT:SpawnWave()
 
     self.WaveNumber = waveNumber + 1
     self:BroadcastMethodToPlayers( "OnNextWave" )
+end
+
+--- @param ply Player
+function EVENT:OnPlayerAdded( ply )
+    self.Kills[ply] = 0
 end
 
 function EVENT:OnStarted()

@@ -192,14 +192,18 @@ function EVENT:OnStarted()
     local shooters
 
     -- Shooters are spawned 10s before the event ends
-    self:TimerCreate( "SpawnShooters", eventDuration - 10, 1, function()
+    self:TimerCreate( "SpawnShooters", eventDuration - 12, 1, function()
         print( "Spawning shooters" )
         shooters = self:SpawnShooters( 5, 4000 )
+    end )
 
+    self:TimerCreate( "SpawnLasers", eventDuration - 10, 1, function()
         local rawNPCs = table.GetKeys( self.NPCs )
         local grouped = GEF.Utils.DistributeElements( shooters, rawNPCs )
+        PrintTable( grouped )
 
         for group, targets in pairs( grouped ) do
+            print( "sending", group, #targets )
             self:BroadcastMethodToPlayers( "AddLaserGroup", group, targets )
         end
 

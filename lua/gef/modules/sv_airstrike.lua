@@ -38,24 +38,25 @@ local function getSpawnPos( target, ceiling, origins )
     return spawnPos
 end
 
+
 --- Makes a new missile aimed at the given target
 --- @param target Entity
 function AirstrikeClass:MakeMissile( target )
-    local math_Rand = math.Rand
-
     local ent = ents.Create( "rpg_missile" )
     ent.GEF_AntlionHive_AirstrikeMissile = true
+
+    hook.Run( "GEF_AntlionHive_AirstrikeMissile", ent )
 
     local missile = {
         ent = ent,
         target = target,
         ang = 0,
-        angSpeed = 0.015,
-        -- forwardSpeed = math_Rand( 3500, 4250 ),
-        forwardSpeed = math_Rand( 1350, 1600 ),
-        wobble = math_Rand( 1800, 2850 ),
+        angSpeed = 0.005,
+        -- forwardSpeed = math.Rand( 3500, 4250 ),
+        forwardSpeed = math.Rand( 1350, 1850 ),
+        wobble = math.Rand( 500, 1200 ),
         _wobbleVec = Vector( 0, 0, 0 ),
-        randomness = math.random( 7, 15 ),
+        randomness = math.random( 1, 5 ),
         reversed = math.random( 1, 2 ) == 1,
         spawned = false,
     }
@@ -67,7 +68,7 @@ do
     local math_sin = math.sin
     local math_cos = math.cos
     local math_random = math.random
-    local under = Vector( 0, 0, 50 )
+    local under = Vector( 0, 0, 300 )
 
     --- Think function for an individual missile
     --- @param struct AirstrikeMissile
@@ -209,6 +210,20 @@ function AirstrikeClass:Start( targets, center, count, damage, scale, origins )
                 ent:SetSaveValue( "m_flDamage", damage or 100 )
                 ent:SetSaveValue( "m_flModelScale", scale or 1 )
                 ent:SetCollisionGroup( COLLISION_GROUP_WORLD )
+                ent:Activate()
+
+                -- gotta wait for the trail to exist..
+                timer.Simple( 0.35, function()
+                    local trail = ent:GetInternalVariable( "m_hRocketTrail" )
+                    trail:SetSaveValue( "m_StartSize", 5 )
+                    trail:SetSaveValue( "m_StartSize", 30 )
+                    trail:SetSaveValue( "m_ParticleLifetime", 7 )
+                    trail:SetSaveValue( "m_Opacity", 1 )
+                    trail:SetSaveValue( "m_MaxSpeed", 7 )
+                    trail:SetSaveValue( "m_SpawnRadius", 15 )
+                    trail:SetSaveValue( "m_SpawnRate", 1024 )
+                end )
+
                 missile.spawned = true
             end
         end )

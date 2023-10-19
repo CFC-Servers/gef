@@ -97,6 +97,24 @@ function Utils.GetCeiling( pos )
     return tr.HitPos[3]
 end
 
+--- Gets the Z position still within the world below the given pos
+--- @param pos Vector
+function Utils.GetFloor( pos )
+    local mins = game.GetWorld():GetModelBounds()
+
+    local minZ = mins[3]
+
+    local tr = util.TraceLine( {
+        start = pos,
+        endpos = pos - Vector( 0, 0, maxZ ),
+        mask = MASK_SOLID_BRUSHONLY,
+        collisiongroup = COLLISION_GROUP_WORLD,
+        ignoreworld = false
+    } )
+
+    return tr.HitPos[3]
+end
+
 --- Returns a copy of the input table with wraparound indexing
 --- i.e. tbl[#tbl + 1] == tbl[1]
 --- @param tbl table<any>

@@ -9,12 +9,12 @@ local function getPositions( count, origin, radius, ceiling )
         local angle = (math.pi * 2) * (i / count)
         local x = math.cos( angle ) * radius
         local y = math.sin( angle ) * radius
-        table.insert( positions, Vector( origin.x + x, origin.y + y, ceiling * 0.7 ) )
+        table.insert( positions, Vector( origin.x + x, origin.y + y, ceiling * 0.55 ) )
     end
 
     return positions
 end
-local function makeShooter( pos )
+local function makeShooter( pos, soundFilter )
     local shooter = ents.Create( "prop_physics" )
     shooter:SetPos( pos )
     shooter:SetAngles( startAng )
@@ -32,6 +32,16 @@ local function makeShooter( pos )
     trail:SetCollisionGroup( COLLISION_GROUP_WORLD )
 
     shooter:DeleteOnRemove( trail )
+
+    local snd = CreateSound( shooter, "ambient/alarms/citadel_alert_loop2.wav", soundFilter )
+
+    snd:PlayEx( 0.15, 98 )
+    snd:SetSoundLevel( 0 )
+    snd:ChangeVolume( 1, 4 )
+
+    shooter:CallOnRemove( "stop_sound", function()
+        snd:Stop()
+    end )
 
     local phys = shooter:GetPhysicsObject()
     assert( phys:IsValid(), "Launcher doens't have phys object yet" )
@@ -51,9 +61,14 @@ function EVENT:SpawnShooters( count, radius )
     local shooters = self.Shooters
     local positions = getPositions( count, origin, radius, ceiling )
 
+    local soundFilter = RecipientFilter()
+    for _, ply in ipairs( self:GetPlayers() ) do
+        soundFilter:AddPlayer( ply )
+    end
+
     local rawShooters = {}
     for i = 1, count do
-        local shooter = makeShooter( positions[i] )
+        local shooter = makeShooter( positions[i], soundFilter )
         local initialAngle = 2 * math.pi * i / count
         table.insert( shooters, {
             shooter = shooter,
@@ -69,7 +84,7 @@ function EVENT:SpawnShooters( count, radius )
     local math_cos = math.cos
     self:HookAdd( "Think", "ShooterMovement", function()
         local now = CurTime()
-        local circleSpeed = 0.02
+        local circleSpeed = 0.021
         local bobSpeed = 0.5
         local bobHeight = 400
 

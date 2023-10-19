@@ -6,10 +6,10 @@ EVENT.PrintName = "Antlion Hive!"
 EVENT.Description = "A horde of Antlions is erupting from somewhere on the map!"
 EVENT.UsesTeams = false
 -- EVENT.Origin = Vector (-1650.3996582031, 10371.4453125, -12629.30859375)
-EVENT.Origin = Vector (5352.0966796875, 6462.36328125, -11135.96875)
+EVENT.Origin = Vector(5060.4526367188, 6157.0590820312, -11143.96875)
 
 --- The total duration of the event
-EVENT.EventDuration = 0.6 * 60
+EVENT.EventDuration = 3 * 60
 
 --- The current Wave Number
 EVENT.WaveNumber = 0
@@ -29,18 +29,21 @@ end
 function EVENT:Cleanup()
     self:TimerRemove( "EndEvent" )
     self:TimerRemove( "WaveSpawn" )
+    self:TimerRemove( "StartDarken" )
     self:TimerRemove( "ScoreSorter" )
     self:TimerRemove( "SpawnLasers" )
     self:TimerRemove( "LaserEnabler" )
     self:TimerRemove( "SpawnShooters" )
+    self:TimerRemove( "ResetDarkness" )
     self:TimerRemove( "StartAirstrike" )
 
     self:HookRemove( "Think", "Airstrike" )
-    self:HookRemove( "Think", "ShooterMovement" )
     self:HookRemove( "PreDrawHalos", "Halos" )
+    self:HookRemove( "Think", "ShooterMovement" )
+    self:HookRemove( "OnNPCKilled", "CountKills" )
+    self:HookRemove( "RenderScreenspaceEffects", "Darken" )
     self:HookRemove( "PostDrawTranslucentRenderables", "Scoreboard" )
     self:HookRemove( "PostDrawTranslucentRenderables", "DrawLasers" )
-    self:HookRemove( "OnNPCKilled", "CountKills" )
 
     print( "Cleaned up timers and hooks" )
 

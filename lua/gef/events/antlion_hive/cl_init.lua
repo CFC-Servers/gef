@@ -89,3 +89,60 @@ function EVENT:OnStarted()
     self.EndTime = CurTime() + self.EventDuration
     self:ShowScoreboard()
 end
+
+function EVENT:StartDarken()
+    -- How long it takes to reach max darkness
+    local duration = 3
+    local startTime = CurTime()
+
+    local originalTab = {
+        ["$pp_colour_addr"] = 0,
+        ["$pp_colour_addg"] = 0,
+        ["$pp_colour_addb"] = 0,
+        ["$pp_colour_brightness"] = 0,
+        ["$pp_colour_contrast"] = 1,
+        ["$pp_colour_colour"] = 1,
+        ["$pp_colour_mulr"] = 0,
+        ["$pp_colour_mulg"] = 0,
+        ["$pp_colour_mulb"] = 0
+    }
+
+    local targetTab = {
+        ["$pp_colour_addr"] = 0.05,
+        ["$pp_colour_addg"] = 0,
+        ["$pp_colour_addb"] = 0,
+        ["$pp_colour_brightness"] = -0.5,
+        ["$pp_colour_contrast"] = 1.5,
+        ["$pp_colour_colour"] = -0.1,
+        ["$pp_colour_mulr"] = 2,
+        ["$pp_colour_mulg"] = -5,
+        ["$pp_colour_mulb"] = -5
+    }
+
+    self:HookAdd( "RenderScreenspaceEffects", "Darken", function()
+        local elapsed = CurTime() - startTime
+        local fraction = math.Clamp( elapsed / duration, 0, 1 )
+
+        local tab = {}
+        for k in pairs( originalTab ) do
+            tab[k] = Lerp( fraction, originalTab[k], targetTab[k] )
+        end
+
+        DrawColorModify( tab )
+    end )
+
+    self:TimerCreate( "ResetDarkness", duration + 11, 1, function()
+        local og = originalTab
+        local tg = targetTab
+
+        targetTab = og
+        originalTab = tg
+
+        duration = 1
+        startTime = CurTime()
+
+        timer.Simple( duration, function()
+            self:HookRemove( "RenderScreenspaceEffects", "Darken" )
+        end )
+    end )
+end

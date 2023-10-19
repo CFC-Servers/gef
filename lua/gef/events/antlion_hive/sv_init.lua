@@ -1,8 +1,8 @@
 --- How many antlions to spawn per wave
-EVENT.GroupsPerWave = 3
+EVENT.GroupsPerWave = 4
 
 --- Maximum number of antlions that can be spawned at any one time
-EVENT.MaxSpawned = 70
+EVENT.MaxSpawned = 85
 
 --- How many time in seconds between the first and second wave
 --- (It increases in speed as the event goes on and more players join)
@@ -184,36 +184,39 @@ function EVENT:OnStarted()
         local nextDelay = initialDelay - adjustment
         nextDelay = math.max( peakDelay, nextDelay )
 
-        -- print( "SV: New wave delay:", nextDelay )
+        print( "SV: New wave delay:", nextDelay )
         self:TimerCreate( "WaveSpawn", nextDelay, 1, spawnAndAdjust )
     end
     self:TimerCreate( "WaveSpawn", initialDelay, 1, spawnAndAdjust )
 
     local shooters
 
-    -- Shooters are spawned 10s before the event ends
-    self:TimerCreate( "SpawnShooters", eventDuration - 12, 1, function()
-        print( "Spawning shooters" )
-        shooters = self:SpawnShooters( 5, 4000 )
+    -- Shooters are spawned 15s before the event ends
+    self:TimerCreate( "SpawnShooters", eventDuration - 15, 1, function()
+        shooters = self:SpawnShooters( 5, 5500 )
     end )
 
-    self:TimerCreate( "SpawnLasers", eventDuration - 10, 1, function()
+    -- Laser targeting begins 12 seconds before the airstrike
+    self:TimerCreate( "SpawnLasers", eventDuration - 12, 1, function()
+
         local rawNPCs = table.GetKeys( self.NPCs )
         local grouped = GEF.Utils.DistributeElements( shooters, rawNPCs )
-        PrintTable( grouped )
 
         for group, targets in pairs( grouped ) do
-            print( "sending", group, #targets )
             self:BroadcastMethodToPlayers( "AddLaserGroup", group, targets )
         end
 
-        -- All players should visually see all locks within 8s
-        local finishLockingIn = 8
+        -- All players should visually see all locks within 10s
+        local finishLockingIn = 10
         self:BroadcastMethodToPlayers( "StartLasers", finishLockingIn )
+
+        self:TimerCreate( "StartDarken", finishLockingIn - 2, 1, function()
+            self:BroadcastMethodToPlayers( "StartDarken" )
+        end )
     end )
 
     -- The airstrike occurs at the very end of the duration
-    self:TimerCreate( "StartAirstrike", eventDuration, 1, function()
+    self:TimerCreate( "StartAirstrike", eventDuration + 2, 1, function()
         spawning = false
         self:TimerRemove( "WaveSpawn" )
 

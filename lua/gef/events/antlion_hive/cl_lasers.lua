@@ -8,14 +8,12 @@ local enabledLasers = {}
 
 --- @param finishLockingIn number How many seconds until we should be fully locked 
 function EVENT:StartLasers( finishLockingIn )
-    print( "Starting lasers" )
-    local smoothing = 0.25
+    local smoothing = 0.035
     local maxDelay = finishLockingIn / #pendingLasers
 
     local function enableNext()
         local laser = table.remove( pendingLasers )
         if not laser then
-            print( "Done enabling all lasers" )
             return
         end
 
@@ -47,18 +45,20 @@ function EVENT:StartLasers( finishLockingIn )
 
             --- This is where we're supposed to be
             local correctPos = target:IsValid() and target:GetPos()
-            local endPos = correctPos
+            local endPos = Vector()
+            if correctPos then endPos:Set( correctPos ) end
 
             -- If we're not already on-target, then we lerp our way over there
             if correctPos ~= lastTargetPos then
                 endPos:Set( LerpVector( smoothing, lastTargetPos, endPos ) )
+                endPos.z = correctPos.z
             end
 
             -- Keep track of this new position so we can lerp against it next iteration
             lastTargetPos:Set( endPos )
 
             render_SetMaterial( laserMat )
-            render_DrawBeam( origin:GetPos(), endPos, 2, 0, 12.5, red )
+            render_DrawBeam( origin:GetPos(), endPos, 7, 0, 12.5, red )
         end
     end )
 end
@@ -69,7 +69,6 @@ function EVENT:StopLasers()
 end
 
 function EVENT:AddLaserGroup( group, targets )
-    print( "Adding laser group", group, #targets )
     local targetsCount = #targets
 
     for i = 1, targetsCount do
@@ -79,7 +78,7 @@ function EVENT:AddLaserGroup( group, targets )
         local newLaser = {
             origin = group,
             target = target,
-            lastTargetPos = target:GetPos()
+            lastTargetPos = target:GetPos() + VectorRand( -850, 850 )
         }
 
         table.insert( pendingLasers, newLaser )

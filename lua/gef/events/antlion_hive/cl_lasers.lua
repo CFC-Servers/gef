@@ -11,6 +11,8 @@ function EVENT:StartLasers( finishLockingIn )
     local smoothing = 0.035
     local maxDelay = finishLockingIn / #pendingLasers
 
+    surface.PlaySound( "npc/overwatch/radiovoice/beginscanning10-0.wav" )
+
     local function enableNext()
         local laser = table.remove( pendingLasers )
         if not laser then
@@ -43,9 +45,14 @@ function EVENT:StartLasers( finishLockingIn )
             local target = laser.target
             local lastTargetPos = laser.lastTargetPos
 
-            --- This is where we're supposed to be
-            local correctPos = target:IsValid() and target:GetPos()
             local endPos = Vector()
+
+            --- This is where we're supposed to be
+            local correctPos
+            if target:IsValid() then
+                correctPos = target:GetPos()
+            end
+
             if correctPos then endPos:Set( correctPos ) end
 
             -- If we're not already on-target, then we lerp our way over there
@@ -74,13 +81,15 @@ function EVENT:AddLaserGroup( group, targets )
     for i = 1, targetsCount do
         local target = targets[i]
 
-        --- @type GEF_Antlion_Laser
-        local newLaser = {
-            origin = group,
-            target = target,
-            lastTargetPos = target:GetPos() + VectorRand( -850, 850 )
-        }
+        if target:IsValid() then
+            --- @type GEF_Antlion_Laser
+            local newLaser = {
+                origin = group,
+                target = target,
+                lastTargetPos = target:GetPos() + VectorRand( -850, 850 )
+            }
 
-        table.insert( pendingLasers, newLaser )
+            table.insert( pendingLasers, newLaser )
+        end
     end
 end

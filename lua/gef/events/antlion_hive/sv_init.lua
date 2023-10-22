@@ -63,7 +63,7 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
     npc:SetSaveValue( "skin", math.random( 0, 3 ) )
     npc:SetSaveValue( "squadname", squadName )
     npc:SetSaveValue( "wakesquad", true )
-    npc:SetSaveValue( "wakeradius", 1000 )
+    npc:SetSaveValue( "wakeradius", 2000 )
     npc:SetSaveValue( "unburroweffects", true )
     npc:SetSaveValue( "ignoreunseenenemies", true )
     npc:SetSaveValue( "spawnflags", bit.bor( SF_NPC_FADE_CORPSE, SF_NPC_GAG ) )
@@ -77,7 +77,7 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
 
     npc:Spawn()
     npc:Activate()
-    npc:SetHealth( 30 + ( waveNumber * 1.25 ) )
+    npc:SetHealth( 30 + ( waveNumber * 0.65 ) )
 
     timer.Simple( math.random() * 2, function()
         npc:Fire( "unburrow" )
@@ -180,11 +180,10 @@ function EVENT:OnStarted()
 
         local numPlayers = #self:GetPlayers()
 
-        local adjustment = (self.WaveNumber + numPlayers) * 0.55
+        local adjustment = ( self.WaveNumber + numPlayers ) * 0.55
         local nextDelay = initialDelay - adjustment
         nextDelay = math.max( peakDelay, nextDelay )
 
-        print( "SV: New wave delay:", nextDelay )
         self:TimerCreate( "WaveSpawn", nextDelay, 1, spawnAndAdjust )
     end
     self:TimerCreate( "WaveSpawn", initialDelay, 1, spawnAndAdjust )
@@ -194,39 +193,42 @@ function EVENT:OnStarted()
     -- Shooters are spawned 15s before the event ends
     self:TimerCreate( "SpawnShooters", eventDuration - 15, 1, function()
         shooters = self:SpawnShooters( 5, 5500 )
+        self:BroadcastMethodToPlayers( "OnShootersSpawned" )
     end )
 
-    -- Laser targeting begins 12 seconds before the airstrike
-    self:TimerCreate( "SpawnLasers", eventDuration - 12, 1, function()
+    -- All players should visually see all locks within 10s
+    local finishLockingIn = 10
+
+    -- Laser targeting begins when the event duration expires
+    self:TimerCreate( "SpawnLasers", eventDuration, 1, function()
 
         local rawNPCs = table.GetKeys( self.NPCs )
         local grouped = GEF.Utils.DistributeElements( shooters, rawNPCs )
 
         for group, targets in pairs( grouped ) do
-            self:BroadcastMethodToPlayers( "AddLaserGroup", group, targets )
+            local subTargets = GEF.Utils.Sample( targets, 5 )
+            self:BroadcastMethodToPlayers( "AddLaserGroup", group, subTargets )
         end
 
-        -- All players should visually see all locks within 10s
-        local finishLockingIn = 10
         self:BroadcastMethodToPlayers( "StartLasers", finishLockingIn )
 
-        self:TimerCreate( "StartDarken", finishLockingIn - 2, 1, function()
+        -- 4 seconds before locking completes, screen effects start
+        self:TimerCreate( "StartDarken", finishLockingIn - 4, 1, function()
+            PrintMessage( HUD_PRINTCENTER, "AIRSTRIKE STARTING - EVACUATE" )
             self:BroadcastMethodToPlayers( "StartDarken" )
         end )
     end )
 
-    -- The airstrike occurs at the very end of the duration
-    self:TimerCreate( "StartAirstrike", eventDuration + 2, 1, function()
+    -- The airstrike occurs after locking completes
+    self:TimerCreate( "StartAirstrike", eventDuration + finishLockingIn, 1, function()
         spawning = false
         self:TimerRemove( "WaveSpawn" )
-
-        PrintMessage( HUD_PRINTTALK, "AIRSTRIKE STARTING" )
 
         -- Airstrike is beginning, lasers turn off
         self:BroadcastMethodToPlayers( "StopLasers" )
 
         local npcs = table.GetKeys( NPCs )
-        self.Airstrike:Start( npcs, self.Origin, #npcs * 3, 800, 0.85, shooters )
+        self.Airstrike:Start( npcs, self.Origin, #npcs * 4, 550, 0.85, shooters )
 
         self:HookAdd( "Think", "Airstrike", function()
             self.Airstrike:Think()

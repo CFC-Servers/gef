@@ -150,3 +150,39 @@ function Utils.DistributeElements( groups, elements )
 
     return distribution
 end
+
+--- Samples a given number of elements from the input table, with elements evenly spaced.
+--- @param tbl table The table to sample from
+--- @param count number The number of elements to sample
+--- @return table A new table containing the sampled elements
+function Utils.Sample( tbl, count )
+    local sampled = {}
+    local n = #tbl
+
+    if count >= n then
+        return tbl
+    end
+
+    local step = n / ( count - 1 )
+
+    for i = 0, count - 1 do
+        local index = math.floor( 1 + step * i + 0.5 )
+        table.insert( sampled, tbl[index] )
+    end
+
+    return sampled
+end
+
+function Utils.PlaySoundSequence( tbl )
+    local delay = 0
+
+    local soundCount = #tbl
+    for i = 1, soundCount do
+        local snd = tbl[i]
+        timer.Simple( delay, function()
+            surface.PlaySound( snd )
+        end )
+
+        delay = delay + SoundDuration( snd )
+    end
+end

@@ -3,6 +3,7 @@ include( "cl_lasers.lua" )
 
 --- @class AntlionHive_PlayerKills
 --- @field nick string
+--- @field ply Player
 --- @field count number
 --- @field r number
 --- @field g number
@@ -26,6 +27,7 @@ local function makePlayerData( ply, count )
     local color = IsColor( override ) and override or getPlayerColor( ply )
 
     return {
+        ply = ply,
         r = color.r,
         g = color.g,
         b = color.b,
@@ -90,10 +92,44 @@ function EVENT:OnStarted()
     self:ShowScoreboard()
 end
 
+function EVENT:AnnounceWinner()
+    local green = Color( 10, 245, 10 )
+    local info = Color( 225, 225, 225 )
+
+    chat.AddText( green, "The Antlion Hive has been defeated!" )
+    chat.AddText( info, "The following players killed the most Antlions:" )
+
+    local killsData = self.KillsData
+    local count = math.min( #killsData, 3 )
+
+    for i = 1, count do
+        local data = killsData[i]
+        local col = Color( data.r, data.g, data.b )
+
+        chat.AddText(
+            info, " " .. i .. ". ",
+            col, data.nick,
+            info, " - ", data.count
+        )
+    end
+end
+
+function EVENT:OnShootersSpawned()
+    local sequence = {
+        "npc/overwatch/radiovoice/attention.wav",
+        "npc/overwatch/radiovoice/highpriorityregion.wav",
+        "npc/overwatch/radiovoice/allteamsrespondcode3.wav"
+    }
+
+    GEF.Utils.PlaySoundSequence( sequence )
+end
+
 function EVENT:StartDarken()
     -- How long it takes to reach max darkness
     local duration = 3
     local startTime = CurTime()
+
+    surface.PlaySound( "npc/overwatch/radiovoice/completesentencingatwill.wav" )
 
     local originalTab = {
         ["$pp_colour_addr"] = 0,
@@ -108,15 +144,15 @@ function EVENT:StartDarken()
     }
 
     local targetTab = {
-        ["$pp_colour_addr"] = 0.05,
+        ["$pp_colour_addr"] = 0.02,
         ["$pp_colour_addg"] = 0,
         ["$pp_colour_addb"] = 0,
-        ["$pp_colour_brightness"] = -0.5,
-        ["$pp_colour_contrast"] = 1.5,
-        ["$pp_colour_colour"] = -0.1,
-        ["$pp_colour_mulr"] = 2,
-        ["$pp_colour_mulg"] = -5,
-        ["$pp_colour_mulb"] = -5
+        ["$pp_colour_brightness"] = -0.25,
+        ["$pp_colour_contrast"] = 1.05,
+        ["$pp_colour_colour"] = 0.15,
+        ["$pp_colour_mulr"] = 0.15,
+        ["$pp_colour_mulg"] = 0,
+        ["$pp_colour_mulb"] = 0
     }
 
     self:HookAdd( "RenderScreenspaceEffects", "Darken", function()

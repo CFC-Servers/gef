@@ -6,10 +6,10 @@ EVENT.PrintName = "Antlion Hive!"
 EVENT.Description = "A horde of Antlions is erupting from somewhere on the map!"
 EVENT.UsesTeams = false
 -- EVENT.Origin = Vector (-1650.3996582031, 10371.4453125, -12629.30859375)
-EVENT.Origin = Vector(5060.4526367188, 6157.0590820312, -11143.96875)
+EVENT.Origin = Vector( 5060.4526367188, 6157.0590820312, -11143.96875 )
 
 --- The total duration of the event
-EVENT.EventDuration = 3 * 60
+EVENT.EventDuration = 3.5 * 60
 
 --- The current Wave Number
 EVENT.WaveNumber = 0
@@ -21,7 +21,7 @@ function EVENT:Initialize()
     self.BaseClass.Initialize( self )
 
     if CLIENT then return end
-    self:StartSimpleSignup( 5 )
+    self:StartSimpleSignup( 20 )
 end
 
 ----- IMPLEMENTED FUNCTIONS -----
@@ -56,7 +56,10 @@ end
 function EVENT:OnEnded()
     self:Cleanup()
 
-    if CLIENT then return end
+    if CLIENT then
+        self:AnnounceWinner()
+        return
+    end
 
     PrintMessage( HUD_PRINTTALK, "Antlion Hive event ended!" )
 end

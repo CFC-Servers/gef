@@ -74,6 +74,7 @@ do
     --- @param struct AirstrikeMissile
     function AirstrikeClass:MissileThink( struct )
         local missile = struct.ent
+        if not missile:IsValid() then return end
         if not struct.spawned then return end
 
         local targetPos
@@ -100,7 +101,7 @@ do
         local randomness = struct.randomness
         local forwardSpeed = struct.forwardSpeed
 
-        local direction = (targetPos - missile:GetPos()):GetNormalized()
+        local direction = ( targetPos - missile:GetPos() ):GetNormalized()
 
         local ang = struct.ang
         local reversed = struct.reversed

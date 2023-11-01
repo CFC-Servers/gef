@@ -54,6 +54,7 @@ local startSignup = function( event, duration, allowedPlys )
     local allowedPlyLookup = GEF.Utils.MakeLookupTable( allowedPlys )
 
     event._signingUp = true
+    event._signupEndsAt = CurTime() + duration
     allowedPlyLookupByEvent[event] = allowedPlyLookup
     table.insert( UpcomingEvents, event )
 

@@ -14,8 +14,9 @@ local function getPositions( count, origin, radius, ceiling )
 
     return positions
 end
-local function makeShooter( pos, soundFilter )
-    local shooter = ents.Create( "prop_physics" )
+
+function EVENT:MakeShooter( pos, soundFilter )
+    local shooter = self:EntCreate( "prop_physics" )
     shooter:SetPos( pos )
     shooter:SetAngles( startAng )
     shooter:SetModel( "models/props_combine/headcrabcannister01a.mdl" )
@@ -23,7 +24,7 @@ local function makeShooter( pos, soundFilter )
     shooter:Activate()
     shooter:SetCollisionGroup( COLLISION_GROUP_WORLD )
 
-    local trail = ents.Create( "prop_effect" )
+    local trail = self:EntCreate( "prop_effect" )
     trail:SetPos( pos )
     trail:SetModel( "models/effects/portalfunnel.mdl" )
     trail:Spawn()
@@ -44,8 +45,13 @@ local function makeShooter( pos, soundFilter )
     end )
 
     local phys = shooter:GetPhysicsObject()
-    assert( phys:IsValid(), "Launcher doens't have phys object yet" )
-    phys:EnableMotion( false )
+    if phys:IsValid() then
+        phys:EnableMotion( false )
+    else
+        ErrorNoHaltWithStack( "Launcher doens't have phys object yet" )
+    end
+
+    self:OnlyTransmitToEvent( { shooter, trail } )
 
     return shooter
 end
@@ -68,7 +74,7 @@ function EVENT:SpawnShooters( count, radius )
 
     local rawShooters = {}
     for i = 1, count do
-        local shooter = makeShooter( positions[i], soundFilter )
+        local shooter = self:MakeShooter( positions[i], soundFilter )
         local initialAngle = 2 * math.pi * i / count
         table.insert( shooters, {
             shooter = shooter,

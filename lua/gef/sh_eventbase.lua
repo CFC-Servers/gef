@@ -10,6 +10,7 @@ eventBase.IsGEFEvent = true
 eventBase.__index = eventBase
 
 eventBase._signingUp = false
+eventBase._signupEndsAt = 0
 
 local getListenerName
 
@@ -147,16 +148,25 @@ function eventBase:TimerExists( timerName )
     return timer.Exists( getListenerName( self, timerName ) )
 end
 
---- Creates a new Entity scoped to this event
+--- Marks a set of existing entities as being managed by this event
+--- (So they will be cleand up when the event ends)
+--- @param entities table<Entity>
+function eventBase:TrackEntities( entities )
+    local entCount = #entities
+
+    for i = 1, entCount do
+        table.insert( self._entities, entities[i] )
+    end
+end
+
+--- Creates a new Entity scoped to, and managed by this event
 --- @param className string
---- @param controlTransmit boolean Whether or not to limit networking to only the Event members
---- @return Entity
-function eventBase:EntCreate( className, controlTransmit )
-    local ent = ents.Create( className )
-    self._entities[ent] = {
-        ent = ent,
-        controlTransmit = controlTransmit
-    }
+--- @return Entity | NPC
+function eventBase:EntCreate( className )
+    local creator = SERVER and ents.Create or ents.CreateClientside
+
+    local ent = creator( className )
+    table.insert( self._entities, ent )
 
     return ent
 end
@@ -216,6 +226,11 @@ function eventBase:AddPlayer( ply )
     self:OnPlayerAdded( ply )
     self:BroadcastMethod( "AddPlayer", ply )
 
+    if SERVER then
+        -- When a player joins, they should see all Event entities
+        self:ShowNetworkEnts( ply )
+    end
+
     return true
 end
 
@@ -231,6 +246,11 @@ function eventBase:RemovePlayer( ply )
 
     self:OnPlayerRemoved( ply )
     self:BroadcastMethod( "RemovePlayer", ply )
+
+    if SERVER then
+        -- When a player leaves, they should stop seeing all Event entities
+        self:HideNetworkEnts( ply )
+    end
 
     return true
 end
@@ -277,6 +297,12 @@ function eventBase:IsSigningUp()
     return self._signingUp
 end
 
+--- Returns the CurTime-based timestamp of the end of the Signup process
+--- @return number
+function eventBase:SignupEndsAt()
+    return self._signupEndsAt
+end
+
 --- Gets the printed name for the Event
 --- @return string
 function eventBase:GetPrintName()
@@ -311,6 +337,69 @@ end
 --- @return boolean
 function eventBase:IsValid()
     return true
+end
+
+if SERVER then
+    --- Entities that are only transmitted to players who are in the event
+    eventBase._networkEnts = {}
+
+    --- @param ent Entity
+    --- @param ply Player
+    --- @param stopTransmitting boolean
+    local function preventTransmitRecursive( ent, ply, stopTransmitting )
+        if not (ent and ent:IsValid()) then return end
+
+        ent:SetPreventTransmit( ply, stopTransmitting )
+
+        local children = ent:GetChildren()
+        local childCount = #children
+
+        for i = 1, childCount do
+            local child = children[i]
+            preventTransmitRecursive( child, ply, stopTransmitting )
+        end
+    end
+
+    --- Prevents transmission of the Event's networked entities to the given player
+    --- @param ply Player
+    function eventBase:HideNetworkEnts( ply )
+        for ent in pairs( self._networkEnts ) do
+            preventTransmitRecursive( ent, ply, true )
+        end
+    end
+
+    --- Allows transmission of the Event's networked entities to the given player
+    --- @param ply Player
+    function eventBase:ShowNetworkEnts( ply )
+        for ent in pairs( self._networkEnts ) do
+            preventTransmitRecursive( ent, ply, false )
+        end
+    end
+
+    --- Sets a group of entities to only be transmitted to Players who have signed up for the event
+    --- @param entities table<Entity>
+    function eventBase:OnlyTransmitToEvent( entities )
+        local entsCount = #entities
+        local transmitEnts = self._networkEnts
+
+        local absent = self:GetAbsent()
+        local absentCount = #absent
+
+        -- Hide the ents from players who are not in the event
+        for i = 1, entsCount do
+            local ent = entities[i]
+            transmitEnts[ent] = true
+
+            ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
+                transmitEnts[ent] = nil
+            end )
+
+            for p = 1, absentCount do
+                local ply = absent[p]
+                preventTransmitRecursive( ent, ply, true )
+            end
+        end
+    end
 end
 
 
@@ -381,14 +470,36 @@ getListenerName = function( event, name )
 end
 
 function eventBase:Cleanup()
+    -- Cleanup event hooks
     for hookName, listeners in pairs( self._hookListeners ) do
         for listenerName in pairs( listeners ) do
             hook.Remove( hookName, listenerName )
         end
     end
 
+    -- Cleanup event timers
     for timerName in pairs( self._timers ) do
         timer.Remove( timerName )
+    end
+
+    -- Cleanup event entities
+    for _, ent in ipairs( self._entities ) do
+        if ent and ent:IsValid() then
+            ent:Remove()
+        end
+    end
+
+    if SERVER then
+        -- Reset entity transmission
+        -- TODO: Should we always re-transmit all network ents?
+
+        local plys = player.GetAll()
+        local plyCount = #plys
+
+        for i = 1, plyCount do
+            local ply = plys[i]
+            self:ShowNetworkEnts( ply )
+        end
     end
 
     table.Empty( self )

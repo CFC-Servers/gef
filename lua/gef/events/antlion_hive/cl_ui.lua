@@ -120,6 +120,7 @@ function EVENT:ShowScoreboard()
         surface_DrawText( score )
     end
 
+    -- The panel players see if they are participating in the Event
     local function drawScores( x, y, w, h )
         local yOffset = h * 0.1
 
@@ -144,6 +145,8 @@ function EVENT:ShowScoreboard()
         surface_DrawText( "You: " .. myData.count )
     end
 
+    -- The panel players see if they're not in the Event yet
+    local useKey = input.LookupBinding( "+use", true )
     local function drawInfo( x, y )
         surface_SetFont( "GEF_AntlionHive_ScoreFont_Details" )
         surface_SetTextColor( 240, 245, 240, 255 )
@@ -157,7 +160,12 @@ function EVENT:ShowScoreboard()
         surface_SetFont( "GEF_AntlionHive_ScoreFont_Details_Bold" )
         surface_SetTextColor( 125, 255, 125, 255 )
         surface_SetTextPos( x + 10, y + 150 )
-        surface_DrawText( "Join the battle by killing an Antlion!" )
+
+        if self:HasPlayer( me ) then
+            surface_DrawText( "Waiting for the event to start..." )
+        else
+            surface_DrawText( "Join the battle by pressing [" .. useKey .. "]" )
+        end
     end
 
     local scoreBackground = Color( 0, 0, 0, 215 )
@@ -183,7 +191,16 @@ function EVENT:ShowScoreboard()
         surface_SetFont( "GEF_AntlionHive_ScoreFont_Countdown" )
         surface_SetTextColor( 255, 255, 255, 255 )
 
-        local remaining = math.max( 0, self.EndTime - CurTime() )
+        local targetTime
+        if self:IsSigningUp() then
+            -- When the signup ends
+            targetTime = self:SignupEndsAt()
+        else
+            -- When the event ends
+            targetTime = self.EndTime
+        end
+
+        local remaining = math.max( 0, targetTime - CurTime() )
         local fmt = string.FormattedTime( remaining, "%02i:%02i" )
         local size = surface_GetTextSize( fmt )
         surface_SetTextPos( (w / 2) - size - 10, y + 14 )
@@ -203,6 +220,9 @@ function EVENT:ShowScoreboard()
 
     local vertOffset = Vector( 0, 0, 0 )
     local fadedBackground = Color( 0, 0, 0, 50 )
+
+    --- Whether or not the player is looking at the panel
+    local isLooking = false
 
     local totalYaw = 0
     local ang = Angle( 180, 0, -90 )
@@ -231,18 +251,18 @@ function EVENT:ShowScoreboard()
         local dirToBoard = (pos - ply:GetPos()):GetNormalized()
         local plyForward = ply:EyeAngles():Forward()
 
-        local looking = false
         local smoothing = 0.3
 
         -- As the player gets farther away, the "aim" window for the panel gets smaller
         local scaledDot = Lerp( fraction, minDot, maxDot )
 
+        isLooking = dirToBoard:Dot( plyForward ) > scaledDot
+
         -- Face towards the player
-        if dirToBoard:Dot( plyForward ) > scaledDot then
+        if isLooking then
             local newAng = (ply:GetPos() - pos):Angle()
             newAng:RotateAroundAxis( newAng:Forward(), 90 )
             newAng:RotateAroundAxis( newAng:Right(), -90 )
-            looking = true
 
             -- Limit how much the panel can "tilt" up and down to face the player
             ang = LerpAngle( smoothing, ang, newAng )
@@ -274,21 +294,40 @@ function EVENT:ShowScoreboard()
         local scale = Lerp( fraction, minScale, maxScale )
         cam.Start3D2D( pos, ang, scale )
 
-        local participating = self:HasPlayer( me )
         local w, h, drawer
 
-        if participating then
-            w = 450
-            h = 655
-            drawer = drawScores
-        else
+        if self:IsSigningUp() then
+            -- Only show the info screen until the event starts
             w = 975
             h = 215
             drawer = drawInfo
+        else
+            local participating = self:HasPlayer( me )
+
+            if participating then
+                -- Once the even starts, show Scores to participants
+                w = 450
+                h = 655
+                drawer = drawScores
+            else
+                -- Or only show the info screen if they haven't signed up yet
+                w = 975
+                h = 215
+                drawer = drawInfo
+            end
         end
 
-        drawBoard( looking and scoreBackground or fadedBackground, w, h, drawer )
+        drawBoard( isLooking and scoreBackground or fadedBackground, w, h, drawer )
 
         cam.End3D2D()
     end )
+
+    if not self:HasPlayer( me ) then
+        self:HookAdd( "KeyPress", "JoinEvent", function( _, key )
+            if key ~= IN_USE then return end
+
+            GEF.Signup.SignUpTo( self )
+            self:HookRemove( "KeyPress", "JoinEvent" )
+        end )
+    end
 end

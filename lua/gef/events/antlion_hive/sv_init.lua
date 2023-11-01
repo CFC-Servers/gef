@@ -51,14 +51,15 @@ end
 --- @param squadName string The name of the squad for the NPC
 --- @param waveCenter Vector the center of this Wave's NPCs
 --- @param players table<Player>
+--- @return NPC?
 function EVENT:SpawnAntlion( squadName, waveCenter, players )
     if table.Count( self.NPCs ) > self.MaxSpawned then
-        return
+        return nil
     end
 
     local waveNumber = self.WaveNumber
 
-    local npc = ents.Create( "npc_antlion" )
+    local npc = self:EntCreate( "npc_antlion" ) --[[@as NPC]]
     npc:SetSaveValue( "startburrowed", true )
     npc:SetSaveValue( "skin", math.random( 0, 3 ) )
     npc:SetSaveValue( "squadname", squadName )
@@ -73,7 +74,10 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
     npc:SetPos( spawnPos )
 
     local canSpawn = hook.Run( "GEF_AntlionHive_AntlionSpawn", npc )
-    if canSpawn == false then return end
+    if canSpawn == false then
+        npc:Remove()
+        return
+    end
 
     npc:Spawn()
     npc:Activate()
@@ -112,8 +116,11 @@ function EVENT:SpawnAntlion( squadName, waveCenter, players )
             self:AddNPC( npc )
         end
     end )
+
+    return npc
 end
 
+--- Spawns the next wave of NPCs
 function EVENT:SpawnWave()
     -- Always have to do 2 per squad
     -- Because engine something-another
@@ -124,6 +131,8 @@ function EVENT:SpawnWave()
 
     local ID = self:GetID()
 
+    local waveNPCs = {}
+
     for _ = 1, self.GroupsPerWave do
         local waveCenter = origin + VectorRand( -900, 900 )
         waveCenter[3] = origin[3]
@@ -131,9 +140,14 @@ function EVENT:SpawnWave()
         local squadName = "antlions_" .. ID .. "_" .. waveNumber
 
         for _ = 1, count do
-            self:SpawnAntlion( squadName, waveCenter, players )
+            local npc = self:SpawnAntlion( squadName, waveCenter, players )
+            if npc then table.insert( waveNPCs, npc ) end
         end
     end
+
+    timer.Simple( 0.1, function()
+        self:OnlyTransmitToEvent( waveNPCs )
+    end )
 
     self.WaveNumber = waveNumber + 1
     self:BroadcastMethodToPlayers( "OnNextWave" )
@@ -229,6 +243,10 @@ function EVENT:OnStarted()
 
         local npcs = table.GetKeys( NPCs )
         self.Airstrike:Start( npcs, self.Origin, #npcs * 4, 550, 0.85, shooters )
+
+        local missiles = self.Airstrike.Missiles
+        self:OnlyTransmitToEvent( missiles )
+        self:TrackEntities( self.Airstrike.Missiles )
 
         self:HookAdd( "Think", "Airstrike", function()
             self.Airstrike:Think()

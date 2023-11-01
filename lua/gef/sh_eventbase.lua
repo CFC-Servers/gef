@@ -147,6 +147,20 @@ function eventBase:TimerExists( timerName )
     return timer.Exists( getListenerName( self, timerName ) )
 end
 
+--- Creates a new Entity scoped to this event
+--- @param className string
+--- @param controlTransmit boolean Whether or not to limit networking to only the Event members
+--- @return Entity
+function eventBase:EntCreate( className, controlTransmit )
+    local ent = ents.Create( className )
+    self._entities[ent] = {
+        ent = ent,
+        controlTransmit = controlTransmit
+    }
+
+    return ent
+end
+
 --- Tells clients to run a method on the event instance with the given arguments.
 --- @param methodName string
 --- @param ... any
@@ -336,6 +350,7 @@ function eventBase:Initialize()
     self._playerLookup = {}
     self._hookListeners = {}
     self._timers = {}
+    self._entities = {}
 end
 
 --- Called when the event starts.

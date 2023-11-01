@@ -388,15 +388,18 @@ if SERVER then
         -- Hide the ents from players who are not in the event
         for i = 1, entsCount do
             local ent = entities[i]
-            transmitEnts[ent] = true
 
-            ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
-                transmitEnts[ent] = nil
-            end )
+            if ent and ent:IsValid() then
+                transmitEnts[ent] = true
 
-            for p = 1, absentCount do
-                local ply = absent[p]
-                preventTransmitRecursive( ent, ply, true )
+                ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
+                    transmitEnts[ent] = nil
+                end )
+
+                for p = 1, absentCount do
+                    local ply = absent[p]
+                    preventTransmitRecursive( ent, ply, true )
+                end
             end
         end
     end

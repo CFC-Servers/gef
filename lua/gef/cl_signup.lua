@@ -99,6 +99,3 @@ net.Receive( "GEF_StopSignup", function()
     stopSignup( event, net.ReadBool() )
 end )
 
-
-
-

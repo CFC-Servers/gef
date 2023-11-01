@@ -89,7 +89,6 @@ end
 function EVENT:OnStarted()
     chat.AddText( "The Antlions are emerging!" )
     self.EndTime = CurTime() + self.EventDuration
-    self:ShowScoreboard()
 end
 
 function EVENT:AnnounceWinner()

@@ -20,8 +20,14 @@ function EVENT:Initialize()
     print( "SH: Event Initialize" )
     self.BaseClass.Initialize( self )
 
-    if CLIENT then return end
-    self:StartSimpleSignup( 20 )
+    if SERVER then
+        self:StartSimpleSignup( 20 )
+    end
+
+    if CLIENT then
+        self:ShowScoreboard()
+        return
+    end
 end
 
 ----- IMPLEMENTED FUNCTIONS -----

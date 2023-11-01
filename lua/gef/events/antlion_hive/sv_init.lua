@@ -159,6 +159,7 @@ function EVENT:OnPlayerAdded( ply )
 end
 
 function EVENT:OnStarted()
+    GEF.Signup.Stop( self, true )
     self.Airstrike = GEF.NewAirstriker()
 
     local NPCs = self.NPCs

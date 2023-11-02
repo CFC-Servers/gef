@@ -6,7 +6,7 @@ EVENT.MaxSpawned = 85
 
 --- How many time in seconds between the first and second wave
 --- (It increases in speed as the event goes on and more players join)
-EVENT.InitialDelay = 10
+EVENT.InitialDelay = 5
 
 -- The delay of the final wave
 -- (This limit can be reached sooner if more players join, but it will never be faster than this)
@@ -243,11 +243,13 @@ function EVENT:OnStarted()
         self:BroadcastMethodToPlayers( "StopLasers" )
 
         local npcs = table.GetKeys( NPCs )
-        self.Airstrike:Start( npcs, self.Origin, #npcs * 4, 550, 0.85, shooters )
+        local function callback( missile )
+            local tbl = { missile }
+            self:TrackEntities( tbl )
+            self:OnlyTransmitToEvent( tbl )
+        end
 
-        local missiles = self.Airstrike.Missiles
-        self:OnlyTransmitToEvent( missiles )
-        self:TrackEntities( self.Airstrike.Missiles )
+        self.Airstrike:Start( npcs, self.Origin, #npcs * 4, 550, 0.85, shooters, callback )
 
         self:HookAdd( "Think", "Airstrike", function()
             self.Airstrike:Think()

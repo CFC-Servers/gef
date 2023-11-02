@@ -92,7 +92,7 @@ net.Receive( "GEF_StartSignup", function()
     startSignup( event, duration, plys )
 end )
 
-net.Receive( "GEF_StopSignup", function()
+net.Receive( "GEF_EndSignup", function()
     local event = GEF.ActiveEventsByID[net.ReadUInt( 32 )]
     if not event then return end
 

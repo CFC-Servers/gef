@@ -15,6 +15,8 @@ if SERVER then
     util.AddNetworkString( "GEF_StartSignup" )
     util.AddNetworkString( "GEF_EndSignup" )
     util.AddNetworkString( "GEF_SignupRequest" )
+    util.AddNetworkString( "GEF_JoinRequest" )
+
 
     AddCSLuaFile( "gef/sh_utils.lua" )
     AddCSLuaFile( "gef/cl_signup.lua" )

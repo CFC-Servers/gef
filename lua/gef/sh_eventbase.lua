@@ -231,6 +231,8 @@ function eventBase:AddPlayer( ply )
         self:ShowNetworkEnts( ply )
     end
 
+    hook.Run( "GEF_PlayerJoinedEvent", ply, self )
+
     return true
 end
 
@@ -251,6 +253,8 @@ function eventBase:RemovePlayer( ply )
         -- When a player leaves, they should stop seeing all Event entities
         self:HideNetworkEnts( ply )
     end
+
+    hook.Run( "GEF_PlayerLeftEvent", ply, self )
 
     return true
 end
@@ -274,7 +278,6 @@ end
 --- @return table<Player>
 function eventBase:GetAbsent()
     local table_insert = table.insert
-    local playerLookup = self._playerLookup
 
     local absent = {}
     local all = player.GetAll()
@@ -283,7 +286,7 @@ function eventBase:GetAbsent()
     for i = 1, plyCount do
         local ply = all[i]
 
-        if not playerLookup[ply] then
+        if not self:HasPlayer( ply ) then
             table_insert( absent, ply )
         end
     end
@@ -389,7 +392,7 @@ if SERVER then
         for i = 1, entsCount do
             local ent = entities[i]
 
-            if ent and ent:IsValid() then
+            if ent and IsValid( ent ) then
                 transmitEnts[ent] = true
 
                 ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
@@ -462,6 +465,12 @@ end
 function eventBase:OnPlayerRemoved( _ply )
 end
 
+--- Called when evaluating whether or not a player can be added
+--- @return boolean
+function eventBase:CanPlayerJoin( _ply )
+    return true
+end
+
 
 ----- PRIVATE FUNCTIONS -----
 
@@ -525,6 +534,27 @@ end
 
 ----- SETUP -----
 
+if SERVER then
+    local function playerCanJoin( ply, event )
+        if event:HasPlayer( ply ) then return end
+
+        local canJoin = hook.Run( "GEF_CanPlayerJoinEvent", ply, event )
+        if canJoin == false then return end
+
+        return event:CanPlayerJoin( ply )
+    end
+
+    net.Receive( "GEF_JoinRequest", function( _, ply )
+        local id = net.ReadUInt( 32 )
+        local event = GEF.ActiveEventsByID[id]
+        if not IsValid( event ) then return end
+
+        if not playerCanJoin( ply, event ) then return end
+
+        event:AddPlayer( ply )
+    end )
+end
+
 if CLIENT then
     net.Receive( "GEF_EventMethod", function()
         local id = net.ReadUInt( 32 )
@@ -539,4 +569,12 @@ if CLIENT then
 
         method( event, unpack( args ) )
     end )
+
+    --- Sends a request to join the event
+    --- TODO: Some kind of rate limits on this process are needed
+    function eventBase:RequestToJoin()
+        net.Start( "GEF_JoinRequest" )
+        net.WriteUInt( self:GetID(), 32 )
+        net.SendToServer()
+    end
 end

@@ -326,7 +326,13 @@ function EVENT:ShowScoreboard()
         self:HookAdd( "KeyPress", "JoinEvent", function( _, key )
             if key ~= IN_USE then return end
 
-            GEF.Signup.SignUpTo( self )
+            if self:IsSigningUp() then
+                GEF.Signup.SignUpTo( self )
+            else
+                self:RequestToJoin()
+            end
+
+            -- TODO: Allow this to run until they successfully join?
             self:HookRemove( "KeyPress", "JoinEvent" )
         end )
     end

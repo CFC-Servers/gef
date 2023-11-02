@@ -155,7 +155,8 @@ end
 --- @param damage number? How much damage (and how much amplitude) the explosions have
 --- @param scale number? The visual scale of the missiles
 --- @param origins table<Entity>? A table of Entities for the missiles to originate from
-function AirstrikeClass:Start( targets, center, count, damage, scale, origins )
+--- @param callback function
+function AirstrikeClass:Start( targets, center, count, damage, scale, origins, callback )
     local targetsCount = #targets
     assert( targetsCount > 0, "Why aren't there any entities to shoot?" )
 
@@ -223,9 +224,13 @@ function AirstrikeClass:Start( targets, center, count, damage, scale, origins )
                     trail:SetSaveValue( "m_MaxSpeed", 7 )
                     trail:SetSaveValue( "m_SpawnRadius", 15 )
                     trail:SetSaveValue( "m_SpawnRate", 1024 )
+
+                    callback( trail )
                 end )
 
                 missile.spawned = true
+
+                callback( ent )
             end
         end )
 

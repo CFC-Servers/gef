@@ -9,7 +9,7 @@ EVENT.UsesTeams = false
 EVENT.Origin = Vector( 5060.4526367188, 6157.0590820312, -11143.96875 )
 
 --- The total duration of the event
-EVENT.EventDuration = 3.5 * 60
+EVENT.EventDuration = 0.4 * 60
 
 --- The current Wave Number
 EVENT.WaveNumber = 0
@@ -21,7 +21,7 @@ function EVENT:Initialize()
     self.BaseClass.Initialize( self )
 
     if SERVER then
-        self:StartSimpleSignup( 20 )
+        self:StartSimpleSignup( 5 )
     end
 
     if CLIENT then

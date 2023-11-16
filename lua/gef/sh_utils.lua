@@ -52,3 +52,137 @@ function Utils.Exclude( allObjects, excludedObjects )
 
     return allowedObjects
 end
+
+--- Picks a number of random elements from the given table                                                                                                                                  --- @param tbl table The sequential table to pick from
+--- @param count number The number of elements to return
+function Utils.PickRandom( tbl, count )
+    local keys = table.GetKeys( tbl )
+
+    if count >= #keys then
+        return tbl
+    end
+
+    table.Shuffle( keys )
+
+    local selected = {}
+    for i = 1, count do
+        local key = keys[i]
+        selected[key] = tbl[key]
+    end
+
+    if not table.IsSequential( tbl ) then
+        return selected
+    end
+
+    -- If the input table is sequential, so should the output
+    return table.ClearKeys( selected )
+end
+
+--- Gets the maximum Z position still within the world above the given pos
+--- @param pos Vector
+function Utils.GetCeiling( pos )
+    local _, max = game.GetWorld():GetModelBounds()
+
+    -- FIXME: Technically the trace only needs to go up to (MaxZ - CurrentZ)
+    local maxZ = max[3]
+
+    local tr = util.TraceLine( {
+        start = pos,
+        endpos = pos + Vector( 0, 0, maxZ ),
+        mask = MASK_SOLID_BRUSHONLY,
+        collisiongroup = COLLISION_GROUP_WORLD,
+        ignoreworld = false
+    } )
+
+    return tr.HitPos[3]
+end
+
+--- Gets the Z position still within the world below the given pos
+--- @param pos Vector
+function Utils.GetFloor( pos )
+    local mins = game.GetWorld():GetModelBounds()
+
+    local minZ = mins[3]
+
+    local tr = util.TraceLine( {
+        start = pos,
+        endpos = pos - Vector( 0, 0, maxZ ),
+        mask = MASK_SOLID_BRUSHONLY,
+        collisiongroup = COLLISION_GROUP_WORLD,
+        ignoreworld = false
+    } )
+
+    return tr.HitPos[3]
+end
+
+--- Returns a copy of the input table with wraparound indexing
+--- i.e. tbl[#tbl + 1] == tbl[1]
+--- @param tbl table<any>
+function Utils.CircularTable( tbl )
+    return setmetatable( table.Copy( tbl ), {
+        __index = function( _, key )
+            local size = #tbl
+            key = ((key - 1) % size) + 1
+
+            return tbl[key]
+        end
+    } )
+end
+
+--- Evenly distributes the elements into each of the groups
+--- @param groups table<any>
+--- @param elements table<any>
+function Utils.DistributeElements( groups, elements )
+    local distribution = {}
+    local group_count = #groups
+    local index = 1
+
+    for _, group in ipairs( groups ) do
+        distribution[group] = {}
+    end
+
+    local elementCount = #elements
+    for i = 1, elementCount do
+        local element = elements[i]
+        table.insert( distribution[groups[index]], element )
+        index = index % group_count + 1
+    end
+
+    return distribution
+end
+
+--- Samples a given number of elements from the input table, with elements evenly spaced.
+--- @param tbl table The table to sample from
+--- @param count number The number of elements to sample
+--- @return table A new table containing the sampled elements
+function Utils.Sample( tbl, count )
+    local sampled = {}
+    local n = #tbl
+
+    if count >= n then
+        return tbl
+    end
+
+    local step = n / ( count - 1 )
+
+    for i = 0, count - 1 do
+        local index = math.floor( 1 + step * i + 0.5 )
+        table.insert( sampled, tbl[index] )
+    end
+
+    return sampled
+end
+
+function Utils.PlaySoundSequence( tbl )
+    local delay = 0
+
+    local soundCount = #tbl
+    for i = 1, soundCount do
+        local snd = tbl[i]
+        timer.Simple( delay, function()
+            surface.PlaySound( snd )
+        end )
+
+        delay = delay + SoundDuration( snd )
+    end
+end

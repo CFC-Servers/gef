@@ -10,9 +10,9 @@ eventBase.IsGEFEvent = true
 eventBase.__index = eventBase
 
 eventBase._signingUp = false
+eventBase._signupEndsAt = 0
 
 local getListenerName
-local cleanupEvent
 
 --- Starts the event, which calls :OnStarted() and the GEF_EventStarted hook.
 --- @return nil
@@ -45,8 +45,6 @@ function eventBase:End()
     self:BroadcastMethod( "End" )
 
     hook.Run( "GEF_EventEnded", self )
-
-    cleanupEvent( self )
 end
 
 --- Equivalent to hook.Add( hookName, listenerName, callback )
@@ -125,13 +123,20 @@ end
 --- Adjusts the given event timer
 --- @param timerName string
 --- @param delay number
---- @param repetitions number
---- @param callback function
+--- @param repetitions number?
+--- @param callback function?
 --- @return nil
 function eventBase:TimerAdjust( timerName, delay, repetitions, callback )
     if type( timerName ) ~= "string" then error( "Expected timerName to be a string" ) end
 
     return timer.Adjust( getListenerName( self, timerName ), delay, repetitions, callback )
+end
+
+--- Starts the given timer
+--- @param timerName string
+--- @return nil
+function eventBase:TimerStart( timerName )
+    return timer.Start( getListenerName( self, timerName ) )
 end
 
 --- Checks if the given timer exists for the event
@@ -143,8 +148,30 @@ function eventBase:TimerExists( timerName )
     return timer.Exists( getListenerName( self, timerName ) )
 end
 
+--- Marks a set of existing entities as being managed by this event
+--- (So they will be cleand up when the event ends)
+--- @param entities table<Entity>
+function eventBase:TrackEntities( entities )
+    local entCount = #entities
+
+    for i = 1, entCount do
+        table.insert( self._entities, entities[i] )
+    end
+end
+
+--- Creates a new Entity scoped to, and managed by this event
+--- @param className string
+--- @return Entity | NPC
+function eventBase:EntCreate( className )
+    local creator = SERVER and ents.Create or ents.CreateClientside
+
+    local ent = creator( className )
+    table.insert( self._entities, ent )
+
+    return ent
+end
+
 --- Tells clients to run a method on the event instance with the given arguments.
---- - Does nothing on CLIENT.
 --- @param methodName string
 --- @param ... any
 --- @return nil
@@ -158,18 +185,53 @@ function eventBase:BroadcastMethod( methodName, ... )
     net.Broadcast()
 end
 
+--- Tells all current event players to run a method on the event instance with the given arguments.
+--- @param methodName string
+--- @param ... any
+--- @return nil
+function eventBase:BroadcastMethodToPlayers( methodName, ... )
+    if CLIENT then return end
+
+    net.Start( "GEF_EventMethod" )
+    net.WriteUInt( self:GetID(), 32 )
+    net.WriteString( methodName )
+    net.WriteTable( { ... } )
+    net.Send( self:GetPlayers() )
+end
+
+--- Tells the specified Client to run a method on the event instance with the given arguments.
+--- @param methodName string
+--- @param ... any
+--- @return nil
+function eventBase:SendMethod( ply, methodName, ... )
+    if CLIENT then return end
+
+    net.Start( "GEF_EventMethod" )
+    net.WriteUInt( self:GetID(), 32 )
+    net.WriteString( methodName )
+    net.WriteTable( { ... } )
+    net.Send( ply )
+end
+
 --- Adds a player to the Event
 --- @param ply Player
 --- @return boolean successful True if successful, False if they were already in the event
 function eventBase:AddPlayer( ply )
     if self:HasPlayer( ply ) then return false end
-    assert( IsValid( ply ) and ply:IsPlayer(), "Expected ply to be a valid player" )
+    assert( ply and ply:IsValid() and ply:IsPlayer(), "Expected ply to be a valid player" )
 
     table.insert( self._players, ply )
     self._playerLookup[ply] = true
 
     self:OnPlayerAdded( ply )
     self:BroadcastMethod( "AddPlayer", ply )
+
+    if SERVER then
+        -- When a player joins, they should see all Event entities
+        self:ShowNetworkEnts( ply )
+    end
+
+    hook.Run( "GEF_PlayerJoinedEvent", ply, self )
 
     return true
 end
@@ -186,6 +248,13 @@ function eventBase:RemovePlayer( ply )
 
     self:OnPlayerRemoved( ply )
     self:BroadcastMethod( "RemovePlayer", ply )
+
+    if SERVER then
+        -- When a player leaves, they should stop seeing all Event entities
+        self:HideNetworkEnts( ply )
+    end
+
+    hook.Run( "GEF_PlayerLeftEvent", ply, self )
 
     return true
 end
@@ -205,10 +274,36 @@ function eventBase:GetPlayers()
     return self._players
 end
 
+--- Gets all players who have not signed up for the event
+--- @return table<Player>
+function eventBase:GetAbsent()
+    local table_insert = table.insert
+
+    local absent = {}
+    local all = player.GetAll()
+
+    local plyCount = #all
+    for i = 1, plyCount do
+        local ply = all[i]
+
+        if not self:HasPlayer( ply ) then
+            table_insert( absent, ply )
+        end
+    end
+
+    return absent
+end
+
 --- Checks if the Event is in the Signup Phase
 --- @return boolean
 function eventBase:IsSigningUp()
     return self._signingUp
+end
+
+--- Returns the CurTime-based timestamp of the end of the Signup process
+--- @return number
+function eventBase:SignupEndsAt()
+    return self._signupEndsAt
 end
 
 --- Gets the printed name for the Event
@@ -247,6 +342,72 @@ function eventBase:IsValid()
     return true
 end
 
+if SERVER then
+    --- Entities that are only transmitted to players who are in the event
+    eventBase._networkEnts = {}
+
+    --- @param ent Entity
+    --- @param ply Player
+    --- @param stopTransmitting boolean
+    local function preventTransmitRecursive( ent, ply, stopTransmitting )
+        if not (ent and ent:IsValid()) then return end
+
+        ent:SetPreventTransmit( ply, stopTransmitting )
+
+        local children = ent:GetChildren()
+        local childCount = #children
+
+        for i = 1, childCount do
+            local child = children[i]
+            preventTransmitRecursive( child, ply, stopTransmitting )
+        end
+    end
+
+    --- Prevents transmission of the Event's networked entities to the given player
+    --- @param ply Player
+    function eventBase:HideNetworkEnts( ply )
+        for ent in pairs( self._networkEnts ) do
+            preventTransmitRecursive( ent, ply, true )
+        end
+    end
+
+    --- Allows transmission of the Event's networked entities to the given player
+    --- @param ply Player
+    function eventBase:ShowNetworkEnts( ply )
+        for ent in pairs( self._networkEnts ) do
+            preventTransmitRecursive( ent, ply, false )
+        end
+    end
+
+    --- Sets a group of entities to only be transmitted to Players who have signed up for the event
+    --- @param entities table<Entity>
+    function eventBase:OnlyTransmitToEvent( entities )
+        local entsCount = #entities
+        local transmitEnts = self._networkEnts
+
+        local absent = self:GetAbsent()
+        local absentCount = #absent
+
+        -- Hide the ents from players who are not in the event
+        for i = 1, entsCount do
+            local ent = entities[i]
+
+            if ent and IsValid( ent ) then
+                transmitEnts[ent] = true
+
+                ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
+                    transmitEnts[ent] = nil
+                end )
+
+                for p = 1, absentCount do
+                    local ply = absent[p]
+                    preventTransmitRecursive( ent, ply, true )
+                end
+            end
+        end
+    end
+end
+
 
 if SERVER then
     --- Begins a simple signup process for players to join an event.
@@ -254,6 +415,7 @@ if SERVER then
     --- @param duration? number How long the signup process should last for
     --- @param excludedPlayers? table<Player> Players who should not be allowed to join the event
     function eventBase:StartSimpleSignup( duration, excludedPlayers )
+        print( "SV: StartSimpleSignup" )
         GEF.Signup.StartSimple( self, duration, excludedPlayers )
     end
 else
@@ -283,6 +445,7 @@ function eventBase:Initialize()
     self._playerLookup = {}
     self._hookListeners = {}
     self._timers = {}
+    self._entities = {}
 end
 
 --- Called when the event starts.
@@ -302,6 +465,12 @@ end
 function eventBase:OnPlayerRemoved( _ply )
 end
 
+--- Called when evaluating whether or not a player can be added
+--- @return boolean
+function eventBase:CanPlayerJoin( _ply )
+    return true
+end
+
 
 ----- PRIVATE FUNCTIONS -----
 
@@ -309,24 +478,45 @@ end
 --- @param name string
 --- @return string
 getListenerName = function( event, name )
-    return name .. "_" .. event:GetInstanceName()
+    return "GEF_" .. event:GetInstanceName() .. "_" .. name
 end
 
---- @param event GEF_Event
-cleanupEvent = function( event )
-    for hookName, listeners in pairs( event._hookListeners ) do
+function eventBase:Cleanup()
+    -- Cleanup event hooks
+    for hookName, listeners in pairs( self._hookListeners ) do
         for listenerName in pairs( listeners ) do
             hook.Remove( hookName, listenerName )
         end
     end
 
-    for timerName in pairs( event._timers ) do
+    -- Cleanup event timers
+    for timerName in pairs( self._timers ) do
         timer.Remove( timerName )
     end
 
-    table.Empty( event )
+    -- Cleanup event entities
+    for _, ent in ipairs( self._entities ) do
+        if ent and ent:IsValid() then
+            ent:Remove()
+        end
+    end
 
-    setmetatable( event, {
+    if SERVER then
+        -- Reset entity transmission
+        -- TODO: Should we always re-transmit all network ents?
+
+        local plys = player.GetAll()
+        local plyCount = #plys
+
+        for i = 1, plyCount do
+            local ply = plys[i]
+            self:ShowNetworkEnts( ply )
+        end
+    end
+
+    table.Empty( self )
+
+    setmetatable( self, {
         IsValid = function()
             return false
         end,
@@ -344,6 +534,27 @@ end
 
 ----- SETUP -----
 
+if SERVER then
+    local function playerCanJoin( ply, event )
+        if event:HasPlayer( ply ) then return end
+
+        local canJoin = hook.Run( "GEF_CanPlayerJoinEvent", ply, event )
+        if canJoin == false then return end
+
+        return event:CanPlayerJoin( ply )
+    end
+
+    net.Receive( "GEF_JoinRequest", function( _, ply )
+        local id = net.ReadUInt( 32 )
+        local event = GEF.ActiveEventsByID[id]
+        if not IsValid( event ) then return end
+
+        if not playerCanJoin( ply, event ) then return end
+
+        event:AddPlayer( ply )
+    end )
+end
+
 if CLIENT then
     net.Receive( "GEF_EventMethod", function()
         local id = net.ReadUInt( 32 )
@@ -358,4 +569,12 @@ if CLIENT then
 
         method( event, unpack( args ) )
     end )
+
+    --- Sends a request to join the event
+    --- TODO: Some kind of rate limits on this process are needed
+    function eventBase:RequestToJoin()
+        net.Start( "GEF_JoinRequest" )
+        net.WriteUInt( self:GetID(), 32 )
+        net.SendToServer()
+    end
 end

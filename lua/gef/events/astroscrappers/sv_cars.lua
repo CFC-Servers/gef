@@ -8,7 +8,7 @@ do
     --- Called once the car is fully settled after landing
     --- @param car Entity
     function EVENT:OnCarSettled( car )
-        local maxDistance = 1200
+        local maxDistance = 900
         local destination = self:GetEntVar( car, "destination" )
 
         local effectCount = 50
@@ -93,7 +93,8 @@ function EVENT:SpawnCar()
     car:Activate()
     self:LaunchCar( car )
 
-    self:SetNW2Bool( car, "IsCar", true )
+    self:SetNW2Bool( car, "IsScrap", true )
+    self:SetNW2Int( car, "PuntsRequired", isBig and self.PuntsRequiredBig or self.PuntsRequiredSmall )
 end
 
 --- @param car Entity
@@ -115,6 +116,11 @@ function EVENT:HandleCarLanding( car )
             car:SetPos( hpos + (sinkOffset * ratio) )
         end )
     end
+
+    self:TimerSimple( duration, function()
+        if not IsValid( car ) then return end
+        self:OnCarSettled( car )
+    end )
 end
 
 EVENT.CarModels = {

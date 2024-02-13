@@ -6,6 +6,7 @@ EVENT.PrintName = "Astro Scrappers!"
 EVENT.Description = "Precious scrap is raining from the sky! Collect as much as you can!"
 EVENT.UsesTeams = false
 EVENT.Origin = Vector( -725.1123046875, -939.87512207031, -11139.96875 )
+
 EVENT.CapturePointSize = 250
 EVENT.CapturePoints = {
     Vector( -2727.44140625, 865.72546386719, -11139.96875 ),
@@ -16,7 +17,12 @@ EVENT.CapturePoints = {
 --- The total duration of the event
 EVENT.EventDuration = 1 * 60
 
-EVENT.PuntsToGather = 12
+EVENT.PuntDropChance = 7 -- Out of 100, liklihood of dropping scrap when being punted
+EVENT.PuntCritChance = 5 -- Out of 100, liklihood of a punt being a critical hit
+EVENT.PuntsRequiredBig = 20
+EVENT.PuntsRequiredSmall = 12
+EVENT.PuntsRequiredDropped = 4
+
 EVENT.PuntResetTime = 1.2
 EVENT.CarSpawnInterval = 10
 

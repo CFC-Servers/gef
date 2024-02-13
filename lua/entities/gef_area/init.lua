@@ -33,7 +33,6 @@ end
 
 --- @param ent Entity
 function ENT:StartTouch( ent )
-    print( "StartTouch", self, ent )
     if not ent then return end
     if ent:IsWorld() then return end
 

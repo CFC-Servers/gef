@@ -104,6 +104,8 @@ function EVENT:SetupCapturePoints()
     for _, pos in ipairs( self.CapturePoints ) do
         self:CreateArea( pos, mins, maxs, function( ent )
             if not ent:IsPlayer() then return end
+
+            self:OnPlayerEnterCaptureZone( ent )
         end )
     end
 end

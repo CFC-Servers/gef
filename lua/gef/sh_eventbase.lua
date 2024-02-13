@@ -157,6 +157,7 @@ function eventBase:TimerExists( timerName )
     return timer.Exists( getListenerName( self, timerName ) )
 end
 
+local simpleCount = 0
 --- Creates an event timer
 --- - This should be used in place of all timer.Simple() calls tied to specific event instances.
 --- - These will automatically be cleaned up when the event ends.
@@ -168,7 +169,9 @@ function eventBase:TimerSimple( interval, callback )
     assert( isnumber( interval ), "Expected interval to be a number" )
     assert( isfunction( callback ), "Expected callback to be a function" )
 
-    local timerName = getListenerName( self, "SimpleTimer_" .. CurTime() )
+    local timerName = getListenerName( self, "SimpleTimer_" .. simpleCount )
+    simpleCount = simpleCount + 1
+
     self._timers[timerName] = true
     timer.Create( timerName, interval, 1, callback )
 end
@@ -304,8 +307,15 @@ end
 --- Gets a CRecpientFilter for the Event's players
 --- @return CRecipientFilter
 function eventBase:GetPlayersFilter()
-    local filter = CRecipientFilter()
-    filter:AddPlayers( self:GetPlayers() )
+    local filter = RecipientFilter()
+
+    local eventPlayers = self:GetPlayers()
+    local playerCount = #eventPlayers
+    for i = 1, playerCount do
+        filter:AddPlayer( eventPlayers[i] )
+    end
+    -- TODO: Use this function when it's released
+    -- filter:AddPlayers( self:GetPlayers() )
 
     return filter
 end

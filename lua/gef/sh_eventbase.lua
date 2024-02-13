@@ -148,8 +148,25 @@ function eventBase:TimerExists( timerName )
     return timer.Exists( getListenerName( self, timerName ) )
 end
 
+--- Creates an event timer
+--- - This should be used in place of all timer.Simple() calls tied to specific event instances.
+--- - These will automatically be cleaned up when the event ends.
+--- - Note: that the callback will still trigger even if the event hasn't started yet.
+--- @param interval number
+--- @param callback function
+--- @return nil
+function eventBase:TimerSimple( interval, callback )
+    assert( isnumber( interval ), "Expected interval to be a number" )
+    assert( isfunction( callback ), "Expected callback to be a function" )
+
+    local timerName = getListenerName( self, "SimpleTimer_" .. CurTime() )
+    self._timers[timerName] = true
+    timer.Create( timerName, interval, 1, callback )
+end
+
+
 --- Marks a set of existing entities as being managed by this event
---- (So they will be cleand up when the event ends)
+--- (So they will be cleaned up when the event ends)
 --- @param entities table<Entity>
 function eventBase:TrackEntities( entities )
     local entCount = #entities
@@ -171,7 +188,7 @@ function eventBase:EntCreate( className )
     return ent
 end
 
---- Tells clients to run a method on the event instance with the given arguments.
+--- Tells event clients to run a method on the event instance with the given arguments.
 --- @param methodName string
 --- @param ... any
 --- @return nil
@@ -274,6 +291,15 @@ function eventBase:GetPlayers()
     return self._players
 end
 
+--- Gets a CRecpientFilter for the Event's players
+--- @return CRecipientFilter
+function eventBase:GetPlayersFilter()
+    local filter = CRecipientFilter()
+    filter:AddPlayers( self:GetPlayers() )
+
+    return filter
+end
+
 --- Gets all players who have not signed up for the event
 --- @return table<Player>
 function eventBase:GetAbsent()
@@ -342,6 +368,18 @@ function eventBase:IsValid()
     return true
 end
 
+--- Sets a managed var in the Entity's table
+function eventBase:EntSetVar( ent, name, value )
+    local entTable = ent:GetTable()
+    entTable[getListenerName( self, name )] = value
+end
+
+--- Gets a managed var in the Entity's table
+function eventBase:EntSetVar( ent, name, value )
+    local entTable = ent:GetTable()
+    entTable[getListenerName( self, name )] = value
+end
+
 if SERVER then
     --- Entities that are only transmitted to players who are in the event
     eventBase._networkEnts = {}
@@ -406,6 +444,152 @@ if SERVER then
             end
         end
     end
+
+    --- Sets a managed NW2 Var on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value any
+    function eventBase:SetNW2Var( ent, key, value )
+        local entVars = self._nw2Vars[ent]
+        if not entVars then
+            entVars = {}
+            self._nw2Vars[ent] = entVars
+        end
+
+        local newKey = getListenerName( self, key )
+        table.insert( entVars, newKey )
+
+        ent:SetNW2Var( newKey, value )
+    end
+
+    --- Sets a managed NW2 Angle on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value Angle
+    function eventBase:SetNW2Angle( ent, key, value )
+        self:SetNW2Var( ent, key, value )
+    end
+
+    --- Sets a managed NW2 Boolean on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value boolean
+    function eventBase:SetNW2Bool( ent, key, value )
+        self:SetNW2Var( ent, key, value )
+    end
+
+    --- Sets a managed NW2 Entity on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value Entity
+    function eventBase:SetNW2Entity( ent, key, value )
+        self:SetNW2Var( ent, key, value )
+    end
+
+    --- Sets a managed NW2 Integer on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value number
+    function eventBase:SetNW2Int( ent, key, value )
+        self:SetNW2Var( ent, key, value )
+    end
+
+    --- Sets a managed NW2 String on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value string
+    function eventBase:SetNW2String( ent, key, value )
+        self:SetNW2Var( ent, key, value )
+    end
+
+    --- Sets a managed NW2 Vector on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param value Vector
+    function eventBase:SetNW2Vector( ent, key, value )
+        self:SetNW2Var( ent, key, value )
+    end
+
+    -- Networked Utils --
+
+    --- Runs util.Effect for the Event's players
+    function eventBase:UtilEffect( effectName, data )
+        local filter = self:GetPlayersFilter()
+        util.Effect( effectName, data, false, filter )
+    end
+
+    --- Runs util.ScreenShake for the Event's players
+    --- @param origin Vector
+    --- @param amplitude number
+    --- @param frequence number
+    --- @param duration number
+    --- @param radius number
+    --- @param airshake boolean
+    function eventBase:UtilScreenshake( origin, amplitude, frequence, duration, radius, airshake )
+        self:BroadcastMethod( "DoScreenshake", origin, amplitude, frequence, duration, radius, airshake )
+    end
+end
+
+--- Gets a managed NW2 Var on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @param default any?
+--- @return any?
+function eventBase:GetNW2Var( ent, key, default )
+    return ent:GetNW2Var( getListenerName( self, key ), default )
+end
+
+--- Gets a managed NW2 Angle on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @return Angle?
+function eventBase:GetNW2Angle( ent, key, default )
+    return self:GetNW2Var( ent, key, default )
+end
+
+--- Gets a managed NW2 Boolean on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @param default boolean?
+--- @return boolean?
+function eventBase:GetNW2Bool( ent, key, default )
+    return self:GetNW2Var( ent, key, default )
+end
+
+--- Gets a managed NW2 Entity on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @param default Entity?
+--- @return Entity?
+function eventBase:GetNW2Entity( ent, key, default )
+    return self:GetNW2Var( ent, key, default )
+end
+
+--- Gets a managed NW2 Integer on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @param default number?
+--- @return number?
+function eventBase:GetNW2Int( ent, key, default )
+    return self:GetNW2Var( ent, key, default )
+end
+
+--- Gets a managed NW2 String on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @param default string?
+--- @return string?
+function eventBase:GetNW2String( ent, key, default )
+    return self:GetNW2Var( ent, key, default )
+end
+
+--- Sets a managed NW2 Vector on the given Entity
+--- @param ent Entity
+--- @param key string
+--- @param default Vector?
+--- @return Vector?
+function eventBase:GetNW2Vector( ent, key, default )
+    self:GetNW2Var( ent, key, default )
 end
 
 
@@ -445,6 +629,8 @@ function eventBase:Initialize()
     self._playerLookup = {}
     self._hookListeners = {}
     self._timers = {}
+    self._nw2Vars = {}
+    self._entVars = {}
     self._entities = {}
 end
 
@@ -492,6 +678,26 @@ function eventBase:Cleanup()
     -- Cleanup event timers
     for timerName in pairs( self._timers ) do
         timer.Remove( timerName )
+    end
+
+    -- Cleanup event NW2 Vars
+    for ent, keys in pairs( self._nw2Vars ) do
+        if IsValid( ent ) then
+            for _, key in ipairs( keys ) do
+                ent:SetNW2Var( key, nil )
+            end
+        end
+    end
+
+    -- Cleanup event entity table Vars
+    for ent, keys in pairs( self._entVars ) do
+        if IsValid( ent ) then
+            local tbl = ent:GetTable()
+
+            for _, key in ipairs( keys ) do
+                tbl[key] = nil
+            end
+        end
     end
 
     -- Cleanup event entities
@@ -576,5 +782,16 @@ if CLIENT then
         net.Start( "GEF_JoinRequest" )
         net.WriteUInt( self:GetID(), 32 )
         net.SendToServer()
+    end
+
+    --- Runs util.ScreenShake
+    --- @param origin Vector
+    --- @param amplitude number
+    --- @param frequence number
+    --- @param duration number
+    --- @param radius number
+    --- @param airshake boolean
+    function eventBase:DoScreenshake( origin, amplitude, frequence, duration, radius, airshake )
+        util.ScreenShake( origin, amplitude, frequence, duration, radius, airshake )
     end
 end

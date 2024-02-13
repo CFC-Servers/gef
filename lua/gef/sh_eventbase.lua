@@ -369,15 +369,75 @@ function eventBase:IsValid()
 end
 
 --- Sets a managed var in the Entity's table
-function eventBase:EntSetVar( ent, name, value )
+--- Note: This will be automatically cleaned up when the event ends
+--- Note: You should use this in place of ent:GetTable()[name] = value
+--- @param ent Entity
+--- @param key string
+--- @param value any?
+function eventBase:SetEntVar( ent, key, value )
+    local entVars = self._entVars[ent]
+    if not entVars then
+        entVars = {}
+        self._entVars[ent] = entVars
+    end
+
+    local newKey = getListenerName( self, key )
+    table.insert( entVars, newKey )
+
     local entTable = ent:GetTable()
-    entTable[getListenerName( self, name )] = value
+    entTable[newKey] = value
 end
 
 --- Gets a managed var in the Entity's table
-function eventBase:EntSetVar( ent, name, value )
+--- Note: You should use this in place of ent:GetTable()[name]
+--- @param ent Entity
+--- @param name string
+--- @return any?
+function eventBase:GetEntVar( ent, name )
     local entTable = ent:GetTable()
-    entTable[getListenerName( self, name )] = value
+    return entTable[getListenerName( self, name )]
+end
+
+--- Adds a managed callback to the given Entity
+--- Note: This will be automatically cleaned up when the event ends
+--- Note: You should use this in place of ent:AddCallback( name, callback )
+--- @param ent Entity
+--- @param name string
+--- @param callback function
+--- @return number
+function eventBase:AddEntCallback( ent, name, callback )
+    local allCallbacks = self._entCallbacks[ent]
+    if not allCallbacks then
+        allCallbacks = {}
+        self._entCallbacks[ent] = allCallbacks
+    end
+
+    local hookCallbacks = allCallbacks[name]
+    if not hookCallbacks then
+        hookCallbacks = {}
+        allCallbacks[name] = hookCallbacks
+    end
+
+    local id = ent:AddCallback( name, callback )
+    table.insert( hookCallbacks, id )
+
+    return id
+end
+
+--- Removes a managed callback from the given Entity
+--- Note: You should use this in place of ent:RemoveCallback( name, callback )
+--- @param ent Entity
+--- @param name string
+--- @param id number
+function eventBase:RemoveEntCallback( ent, name, id )
+    local allCallbacks = self._entCallbacks[ent]
+    if not allCallbacks then return end
+
+    local hookCallbacks = allCallbacks[name]
+    if not hookCallbacks then return end
+
+    table.RemoveByValue( hookCallbacks, id )
+    ent:RemoveCallback( name, id )
 end
 
 if SERVER then
@@ -631,6 +691,7 @@ function eventBase:Initialize()
     self._timers = {}
     self._nw2Vars = {}
     self._entVars = {}
+    self._entCallbacks = {}
     self._entities = {}
 end
 
@@ -680,6 +741,15 @@ function eventBase:Cleanup()
         timer.Remove( timerName )
     end
 
+    -- TODO: Cleanup managed CallOnRemove callbacks
+
+    -- Cleanup event entities
+    for _, ent in ipairs( self._entities ) do
+        if ent and ent:IsValid() then
+            ent:Remove()
+        end
+    end
+
     -- Cleanup event NW2 Vars
     for ent, keys in pairs( self._nw2Vars ) do
         if IsValid( ent ) then
@@ -700,10 +770,12 @@ function eventBase:Cleanup()
         end
     end
 
-    -- Cleanup event entities
-    for _, ent in ipairs( self._entities ) do
-        if ent and ent:IsValid() then
-            ent:Remove()
+    -- Cleanup event entity callbacks
+    for ent, hooks in pairs( self._entCallbacks ) do
+        if IsValid( ent ) then
+            for hookName, callbackID in pairs( hooks ) do
+                ent:RemoveCallback( hookName, callbackID )
+            end
         end
     end
 

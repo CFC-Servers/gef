@@ -1,3 +1,5 @@
+local math_random = math.random
+
 EVENT.CarModels = {
     small = {
         "models/props_vehicles/van001a_physics.mdl",
@@ -54,56 +56,60 @@ function EVENT:LaunchPlayersFrom( origin, maxDistance )
     end
 end
 
--- TODO: Check the outer bounds of the model as well and make sure it won't get caught on walls
---- Finds a valid path for a vehicle
-local function getPathSingle( tr, min, max )
-    local offset = VectorRand( min, max )
-    offset[3] = 0
+do
+    local VectorRand = VectorRand
+    local defaultOffset = Vector( 0, 0, 2000 )
 
-    local carOrigin = origin + offset
-    carOrigin.z = math.random( 1000, 2100 )
+    -- TODO: Check the outer bounds of the model as well and make sure it won't get caught on walls
+    --- Finds a valid path for a vehicle
+    local function getPathSingle( tr, min, max )
+        local offset = VectorRand( min, max )
+        offset[3] = 0
 
-    local carDestination = origin - offset
-    util.TraceLine( { start = carOrigin, endpos = carDestination - Vector( 0, 0, 10 ), collisiongroup = COLLISION_GROUP_WORLD, output = tr } )
+        local carOrigin = origin + offset
+        carOrigin.z = math_random( 1000, 2100 )
 
-    local hitPos = tr.HitPos
-    if not tr.HitWorld then return false end
-    if hitPos:Distance( carDestination ) > 100 then return false end
-    if tr.HitNormal ~= originNormal then return false end
+        local carDestination = origin - offset
+        util.TraceLine( { start = carOrigin, endpos = carDestination - Vector( 0, 0, 10 ), collisiongroup = COLLISION_GROUP_WORLD, output = tr } )
 
-    return {
-        origin = carOrigin,
-        destination = carDestination,
-    }
-end
+        local hitPos = tr.HitPos
+        if not tr.HitWorld then return false end
+        if hitPos:Distance( carDestination ) > 100 then return false end
+        if tr.HitNormal ~= originNormal then return false end
 
-local defaultOffset = Vector( 0, 0, 2000 )
-
---- Attemps to find a valid path for a vehicle
-local function getPath()
-    local tr = {}
-    local min, max = -2000, 2000
-
-    for _ = 1, 80 do
-        local path = getPathSingle( tr, min, max )
-        if path then return path end
+        return {
+            origin = carOrigin,
+            destination = carDestination,
+        }
     end
 
-    return { origin = origin + defaultOffset, destination = origin }
-end
+    --- Attemps to find a valid path for a vehicle
+    local function getPath()
+        local tr = {}
+        local min, max = -2000, 2000
 
---- Given a car, find a path and set up its position
---- @param car Entity
-local function positionCar( car )
-    local path = getPath()
-    local carOrigin = path.origin
-    local destination = path.destination
+        for _ = 1, 80 do
+            local path = getPathSingle( tr, min, max )
+            if path then return path end
+        end
 
-    local pathNormal = ( destination - carOrigin ):GetNormalized()
-    car:SetPos( carOrigin )
-    car:SetAngles( pathNormal:Angle() )
+        ErrorNoHaltWithStack( "[GEF] [AstroScrappers] Failed to find a valid path for a vehicle!" )
+        return { origin = origin + defaultOffset, destination = origin }
+    end
 
-    car:GetTable().GEF_AstroScrappers_PathNormal = pathNormal
+    --- Given a car, find a path and set up its position
+    --- @param car Entity
+    function EVENT:PositionCar( car )
+        local path = getPath()
+        local carOrigin = path.origin
+        local destination = path.destination
+
+        local pathNormal = ( destination - carOrigin ):GetNormalized()
+        car:SetPos( carOrigin )
+        car:SetAngles( pathNormal:Angle() )
+
+        self:SetEntVar( car, "pathNormal", pathNormal )
+    end
 end
 
 --- Called once the car is fully settled after landing
@@ -134,7 +140,7 @@ end
 
 --- @param car Entity
 function EVENT:HandleCarLanding( car )
-    local pathNormal = car:GetTable().GEF_AstroScrappers_PathNormal
+    local pathNormal = self:GetEntVar( car, "pathNormal" )
 
     local carRadius = car:GetModelRadius()
     local sinkDepth = 20 + carRadius * 0.5
@@ -161,7 +167,7 @@ function EVENT:LaunchCar( car )
     phys:SetMass( 999999 )
 
     -- Shoot it at the target
-    phys:SetVelocityInstantaneous( pathNormal * math.random( 3000, 7500 ) * phys:GetMass() * 3 )
+    phys:SetVelocityInstantaneous( pathNormal * math_random( 3000, 7500 ) * phys:GetMass() * 3 )
 
     -- Add some spin
     local angMomentum = VectorRand( -400, 400 )
@@ -175,34 +181,36 @@ end
 
 --- @param car Entity
 function EVENT:SetupOnCollide( car )
-    car:AddCallback( "PhysicsCollide", function( _, data )
+    local id
+
+    id = self:AddEntCallback( car, "PhysicsCollide", function( _, data )
         local hitEnt = data.HitEntity
         if not hitEnt:IsWorld() then return end
         data.PhysObject:EnableMotion( false )
 
         self:HandleCarLanding( car )
+        self:RemoveEntCallback( car, "PhysicsCollide", id )
     end )
 end
 
 function EVENT:SpawnCar()
     local models = self.CarModels
 
-    local isBig = math.random( 1, 10 ) == 1
+    local isBig = math_random( 1, 10 ) == 1
     local modelSet = isBig and models.big or models.small
-    local model = modelSet[math.random( 1, #modelSet )]
+    local model = modelSet[math_random( 1, #modelSet )]
 
-    local car = ents.Create( "prop_physics" )
+    local car = self:EntCreate( "prop_physics" )
     car:SetModel( model )
 
-    positionCar( car )
+    self:PositionCar( car )
     self:SetupOnCollide( car )
 
     car:Spawn()
     car:Activate()
     self:LaunchCar( car )
 
-    car:SetNW2Bool( "GEF_AstroScrappers_IsMeteor", true )
-
+    self:SetNW2Bool( car, "IsMeteor", true )
     table.insert( self.ActiveCars, car )
 
     -- TODO: Remove this timer and have cleanups done naturally

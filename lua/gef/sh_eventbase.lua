@@ -14,6 +14,15 @@ eventBase._signupEndsAt = 0
 
 local getListenerName
 
+-- Locals
+local type = type
+local assert = assert
+local IsValid = IsValid
+local isnumber = isnumber
+local isstring = isstring
+local isfunction = isfunction
+local table_insert = table.insert
+
 --- Starts the event, which calls :OnStarted() and the GEF_EventStarted hook.
 --- @return nil
 function eventBase:Start()
@@ -170,9 +179,10 @@ end
 --- @param entities table<Entity>
 function eventBase:TrackEntities( entities )
     local entCount = #entities
+    local entTable = self._entities
 
     for i = 1, entCount do
-        table.insert( self._entities, entities[i] )
+        table_insert( entTable, entities[i] )
     end
 end
 
@@ -183,7 +193,7 @@ function eventBase:EntCreate( className )
     local creator = SERVER and ents.Create or ents.CreateClientside
 
     local ent = creator( className )
-    table.insert( self._entities, ent )
+    table_insert( self._entities, ent )
 
     return ent
 end
@@ -237,7 +247,7 @@ function eventBase:AddPlayer( ply )
     if self:HasPlayer( ply ) then return false end
     assert( ply and ply:IsValid() and ply:IsPlayer(), "Expected ply to be a valid player" )
 
-    table.insert( self._players, ply )
+    table_insert( self._players, ply )
     self._playerLookup[ply] = true
 
     self:OnPlayerAdded( ply )
@@ -277,7 +287,7 @@ function eventBase:RemovePlayer( ply )
 end
 
 --- Checks if the player exists in the Event
---- @param ply Player
+--- @param ply Player|Entity
 --- @return boolean
 function eventBase:HasPlayer( ply )
     if not ply then return false end
@@ -303,8 +313,6 @@ end
 --- Gets all players who have not signed up for the event
 --- @return table<Player>
 function eventBase:GetAbsent()
-    local table_insert = table.insert
-
     local absent = {}
     local all = player.GetAll()
 
@@ -368,288 +376,362 @@ function eventBase:IsValid()
     return true
 end
 
---- Sets a managed var in the Entity's table
---- Note: This will be automatically cleaned up when the event ends
---- Note: You should use this in place of ent:GetTable()[name] = value
---- @param ent Entity
---- @param key string
---- @param value any?
-function eventBase:SetEntVar( ent, key, value )
-    local entVars = self._entVars[ent]
-    if not entVars then
-        entVars = {}
-        self._entVars[ent] = entVars
-    end
+-- ===== Entity Vars =====
+do
+    -- This is a set of managed Entity Var functions
+    -- These let you set vars on an entity that will be automatically cleaned up
 
-    local newKey = getListenerName( self, key )
-    table.insert( entVars, newKey )
-
-    local entTable = ent:GetTable()
-    entTable[newKey] = value
-end
-
---- Gets a managed var in the Entity's table
---- Note: You should use this in place of ent:GetTable()[name]
---- @param ent Entity
---- @param name string
---- @return any?
-function eventBase:GetEntVar( ent, name )
-    local entTable = ent:GetTable()
-    return entTable[getListenerName( self, name )]
-end
-
---- Adds a managed callback to the given Entity
---- Note: This will be automatically cleaned up when the event ends
---- Note: You should use this in place of ent:AddCallback( name, callback )
---- @param ent Entity
---- @param name string
---- @param callback function
---- @return number
-function eventBase:AddEntCallback( ent, name, callback )
-    local allCallbacks = self._entCallbacks[ent]
-    if not allCallbacks then
-        allCallbacks = {}
-        self._entCallbacks[ent] = allCallbacks
-    end
-
-    local hookCallbacks = allCallbacks[name]
-    if not hookCallbacks then
-        hookCallbacks = {}
-        allCallbacks[name] = hookCallbacks
-    end
-
-    local id = ent:AddCallback( name, callback )
-    table.insert( hookCallbacks, id )
-
-    return id
-end
-
---- Removes a managed callback from the given Entity
---- Note: You should use this in place of ent:RemoveCallback( name, callback )
---- @param ent Entity
---- @param name string
---- @param id number
-function eventBase:RemoveEntCallback( ent, name, id )
-    local allCallbacks = self._entCallbacks[ent]
-    if not allCallbacks then return end
-
-    local hookCallbacks = allCallbacks[name]
-    if not hookCallbacks then return end
-
-    table.RemoveByValue( hookCallbacks, id )
-    ent:RemoveCallback( name, id )
-end
-
-if SERVER then
-    --- Entities that are only transmitted to players who are in the event
-    eventBase._networkEnts = {}
-
+    --- Sets a managed var in the Entity's table
+    --- Note: This will be automatically cleaned up when the event ends
+    --- Note: You should use this in place of ent:GetTable()[name] = value
     --- @param ent Entity
-    --- @param ply Player
-    --- @param stopTransmitting boolean
-    local function preventTransmitRecursive( ent, ply, stopTransmitting )
-        if not (ent and ent:IsValid()) then return end
+    --- @param key string
+    --- @param value any?
+    function eventBase:SetEntVar( ent, key, value )
+        local entVars = self._entVars[ent]
+        if not entVars then
+            entVars = {}
+            self._entVars[ent] = entVars
+        end
 
-        ent:SetPreventTransmit( ply, stopTransmitting )
+        local newKey = getListenerName( self, key )
+        table_insert( entVars, newKey )
 
-        local children = ent:GetChildren()
-        local childCount = #children
+        local entTable = ent:GetTable()
+        entTable[newKey] = value
+    end
 
-        for i = 1, childCount do
-            local child = children[i]
-            preventTransmitRecursive( child, ply, stopTransmitting )
+    --- Sets multiple managed vars in the Entity's table
+    --- Note: These will be automatically cleaned up when the event ends
+    --- Note: You should use this in place of multiple ent:GetTable()[name] = value
+    --- Note: This is a minor optimization and should only be used when you have many vars to set
+    --- @param ent Entity
+    --- @param vars table<string, any>
+    function eventBase:SetEntVars( ent, vars )
+        local entVars = self._entVars[ent]
+        if not entVars then
+            entVars = {}
+            self._entVars[ent] = entVars
+        end
+
+        local entTable = ent:GetTable()
+        for key, value in pairs( vars ) do
+            local newKey = getListenerName( self, key )
+            table_insert( entVars, newKey )
+
+            entTable[newKey] = value
         end
     end
 
-    --- Prevents transmission of the Event's networked entities to the given player
-    --- @param ply Player
-    function eventBase:HideNetworkEnts( ply )
-        for ent in pairs( self._networkEnts ) do
-            preventTransmitRecursive( ent, ply, true )
+    --- Gets a managed var in the Entity's table
+    --- Note: You should use this in place of ent:GetTable()[name]
+    --- @param ent Entity
+    --- @param name string
+    --- @return any?
+    function eventBase:GetEntVar( ent, name )
+        local entTable = ent:GetTable()
+        return entTable[getListenerName( self, name )]
+    end
+end
+
+-- ===== Entity Callbacks =====
+do
+    -- This is a set of functions for managing Entity callbacks
+    -- Callbacks will automatically be cleaned up when the event ends
+
+    --- Adds a managed callback to the given Entity
+    --- Note: This will be automatically cleaned up when the event ends
+    --- Note: You should use this in place of ent:AddCallback( name, callback )
+    --- @param ent Entity
+    --- @param name string
+    --- @param callback function
+    --- @return number
+    function eventBase:AddEntCallback( ent, name, callback )
+        local allCallbacks = self._entCallbacks[ent]
+        if not allCallbacks then
+            allCallbacks = {}
+            self._entCallbacks[ent] = allCallbacks
         end
+
+        local hookCallbacks = allCallbacks[name]
+        if not hookCallbacks then
+            hookCallbacks = {}
+            allCallbacks[name] = hookCallbacks
+        end
+
+        local id = ent:AddCallback( name, callback )
+        table_insert( hookCallbacks, id )
+
+        return id
     end
 
-    --- Allows transmission of the Event's networked entities to the given player
-    --- @param ply Player
-    function eventBase:ShowNetworkEnts( ply )
-        for ent in pairs( self._networkEnts ) do
-            preventTransmitRecursive( ent, ply, false )
-        end
+    --- Removes a managed callback from the given Entity
+    --- Note: You should use this in place of ent:RemoveCallback( name, callback )
+    --- @param ent Entity
+    --- @param name string
+    --- @param id number
+    function eventBase:RemoveEntCallback( ent, name, id )
+        local allCallbacks = self._entCallbacks[ent]
+        if not allCallbacks then return end
+
+        local hookCallbacks = allCallbacks[name]
+        if not hookCallbacks then return end
+
+        table.RemoveByValue( hookCallbacks, id )
+        ent:RemoveCallback( name, id )
     end
+end
 
-    --- Sets a group of entities to only be transmitted to Players who have signed up for the event
-    --- @param entities table<Entity>
-    function eventBase:OnlyTransmitToEvent( entities )
-        local entsCount = #entities
-        local transmitEnts = self._networkEnts
+-- ===== Networked Entities =====
+do
+    -- This is a set of tools that allows you to control the transmission of event entities
+    -- Any managed entity will only be transmitted to players who have signed up for the event
 
-        local absent = self:GetAbsent()
-        local absentCount = #absent
+    if SERVER then
+        --- Entities that are only transmitted to players who are in the event
+        eventBase._networkEnts = {}
 
-        -- Hide the ents from players who are not in the event
-        for i = 1, entsCount do
-            local ent = entities[i]
+        --- @param ent Entity
+        --- @param ply Player
+        --- @param stopTransmitting boolean
+        local function preventTransmitRecursive( ent, ply, stopTransmitting )
+            if not (ent and ent:IsValid()) then return end
 
-            if ent and IsValid( ent ) then
-                transmitEnts[ent] = true
+            ent:SetPreventTransmit( ply, stopTransmitting )
 
-                ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
-                    transmitEnts[ent] = nil
-                end )
+            local children = ent:GetChildren()
+            local childCount = #children
 
-                for p = 1, absentCount do
-                    local ply = absent[p]
-                    preventTransmitRecursive( ent, ply, true )
+            for i = 1, childCount do
+                local child = children[i]
+                preventTransmitRecursive( child, ply, stopTransmitting )
+            end
+        end
+
+        --- Prevents transmission of the Event's networked entities to the given player
+        --- @param ply Player
+        function eventBase:HideNetworkEnts( ply )
+            for ent in pairs( self._networkEnts ) do
+                preventTransmitRecursive( ent, ply, true )
+            end
+        end
+
+        --- Allows transmission of the Event's networked entities to the given player
+        --- @param ply Player
+        function eventBase:ShowNetworkEnts( ply )
+            for ent in pairs( self._networkEnts ) do
+                preventTransmitRecursive( ent, ply, false )
+            end
+        end
+
+        --- Sets a group of entities to only be transmitted to Players who have signed up for the event
+        --- @param entities table<Entity>
+        function eventBase:OnlyTransmitToEvent( entities )
+            local entsCount = #entities
+            local transmitEnts = self._networkEnts
+
+            local absent = self:GetAbsent()
+            local absentCount = #absent
+
+            -- Hide the ents from players who are not in the event
+            for i = 1, entsCount do
+                local ent = entities[i]
+
+                if ent and IsValid( ent ) then
+                    transmitEnts[ent] = true
+
+                    ent:CallOnRemove( "GEF_TransmitEnt_Cleanup", function()
+                        transmitEnts[ent] = nil
+                    end )
+
+                    for p = 1, absentCount do
+                        local ply = absent[p]
+                        preventTransmitRecursive( ent, ply, true )
+                    end
                 end
             end
         end
     end
+end
 
-    --- Sets a managed NW2 Var on the given Entity
-    --- @param ent Entity
-    --- @param key string
-    --- @param value any
-    function eventBase:SetNW2Var( ent, key, value )
-        local entVars = self._nw2Vars[ent]
-        if not entVars then
-            entVars = {}
-            self._nw2Vars[ent] = entVars
+-- ===== Network Var Utils =====
+do
+    -- This is a set of managed NW2 Var functions
+    -- These vars will automatically be cleaned up when the event ends
+    -- Interally, these are just wrappers around Entity:SetNW2Var and Entity:GetNW2Var
+    -- (those are the only functions that let you set nil)
+
+    if SERVER then
+        --- Sets a managed NW2 Var on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value any?
+        function eventBase:SetNW2Var( ent, key, value )
+            local entVars = self._nw2Vars[ent]
+            if not entVars then
+                entVars = {}
+                self._nw2Vars[ent] = entVars
+            end
+
+            local newKey = getListenerName( self, key )
+            table_insert( entVars, newKey )
+
+            ent:SetNW2Var( newKey, value )
         end
 
-        local newKey = getListenerName( self, key )
-        table.insert( entVars, newKey )
+        --- Sets a managed NW2 Angle on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value Angle?
+        function eventBase:SetNW2Angle( ent, key, value )
+            self:SetNW2Var( ent, key, value )
+        end
 
-        ent:SetNW2Var( newKey, value )
+        --- Sets a managed NW2 Boolean on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value boolean?
+        function eventBase:SetNW2Bool( ent, key, value )
+            self:SetNW2Var( ent, key, value )
+        end
+
+        --- Sets a managed NW2 Entity on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value Entity?
+        function eventBase:SetNW2Entity( ent, key, value )
+            self:SetNW2Var( ent, key, value )
+        end
+
+        --- Sets a managed NW2 Integer on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value number?
+        function eventBase:SetNW2Int( ent, key, value )
+            self:SetNW2Var( ent, key, value )
+        end
+
+        --- Sets a managed NW2 String on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value string?
+        function eventBase:SetNW2String( ent, key, value )
+            self:SetNW2Var( ent, key, value )
+        end
+
+        --- Sets a managed NW2 Vector on the given Entity
+        --- @param ent Entity
+        --- @param key string
+        --- @param value Vector?
+        function eventBase:SetNW2Vector( ent, key, value )
+            self:SetNW2Var( ent, key, value )
+        end
     end
 
-    --- Sets a managed NW2 Angle on the given Entity
+    -- This is a set of managed NW2 Var functions
+    -- These vars will automatically be cleaned up when the event ends
+    -- Interally, these are just wrappers around Entity:SetNW2Var and Entity:GetNW2Var
+    -- (those are the only functions that let you set nil)
+
+    --- Gets a managed NW2 Var on the given Entity
     --- @param ent Entity
     --- @param key string
-    --- @param value Angle
-    function eventBase:SetNW2Angle( ent, key, value )
-        self:SetNW2Var( ent, key, value )
+    --- @param default any?
+    --- @return any?
+    function eventBase:GetNW2Var( ent, key, default )
+        return ent:GetNW2Var( getListenerName( self, key ), default )
     end
 
-    --- Sets a managed NW2 Boolean on the given Entity
+    --- Gets a managed NW2 Angle on the given Entity
     --- @param ent Entity
     --- @param key string
-    --- @param value boolean
-    function eventBase:SetNW2Bool( ent, key, value )
-        self:SetNW2Var( ent, key, value )
+    --- @return Angle?
+    function eventBase:GetNW2Angle( ent, key, default )
+        return self:GetNW2Var( ent, key, default )
     end
 
-    --- Sets a managed NW2 Entity on the given Entity
+    --- Gets a managed NW2 Boolean on the given Entity
     --- @param ent Entity
     --- @param key string
-    --- @param value Entity
-    function eventBase:SetNW2Entity( ent, key, value )
-        self:SetNW2Var( ent, key, value )
+    --- @param default boolean?
+    --- @return boolean?
+    function eventBase:GetNW2Bool( ent, key, default )
+        return self:GetNW2Var( ent, key, default )
     end
 
-    --- Sets a managed NW2 Integer on the given Entity
+    --- Gets a managed NW2 Entity on the given Entity
     --- @param ent Entity
     --- @param key string
-    --- @param value number
-    function eventBase:SetNW2Int( ent, key, value )
-        self:SetNW2Var( ent, key, value )
+    --- @param default Entity?
+    --- @return Entity?
+    function eventBase:GetNW2Entity( ent, key, default )
+        return self:GetNW2Var( ent, key, default )
     end
 
-    --- Sets a managed NW2 String on the given Entity
+    --- Gets a managed NW2 Integer on the given Entity
     --- @param ent Entity
     --- @param key string
-    --- @param value string
-    function eventBase:SetNW2String( ent, key, value )
-        self:SetNW2Var( ent, key, value )
+    --- @param default number?
+    --- @return number?
+    function eventBase:GetNW2Int( ent, key, default )
+        return self:GetNW2Var( ent, key, default )
+    end
+
+    --- Gets a managed NW2 String on the given Entity
+    --- @param ent Entity
+    --- @param key string
+    --- @param default string?
+    --- @return string?
+    function eventBase:GetNW2String( ent, key, default )
+        return self:GetNW2Var( ent, key, default )
     end
 
     --- Sets a managed NW2 Vector on the given Entity
     --- @param ent Entity
     --- @param key string
-    --- @param value Vector
-    function eventBase:SetNW2Vector( ent, key, value )
-        self:SetNW2Var( ent, key, value )
-    end
-
-    -- Networked Utils --
-
-    --- Runs util.Effect for the Event's players
-    function eventBase:UtilEffect( effectName, data )
-        local filter = self:GetPlayersFilter()
-        util.Effect( effectName, data, false, filter )
-    end
-
-    --- Runs util.ScreenShake for the Event's players
-    --- @param origin Vector
-    --- @param amplitude number
-    --- @param frequence number
-    --- @param duration number
-    --- @param radius number
-    --- @param airshake boolean
-    function eventBase:UtilScreenshake( origin, amplitude, frequence, duration, radius, airshake )
-        self:BroadcastMethod( "DoScreenshake", origin, amplitude, frequence, duration, radius, airshake )
+    --- @param default Vector?
+    --- @return Vector?
+    function eventBase:GetNW2Vector( ent, key, default )
+        self:GetNW2Var( ent, key, default )
     end
 end
 
---- Gets a managed NW2 Var on the given Entity
---- @param ent Entity
---- @param key string
---- @param default any?
---- @return any?
-function eventBase:GetNW2Var( ent, key, default )
-    return ent:GetNW2Var( getListenerName( self, key ), default )
-end
+-- ===== Networked Utils =====
+do
+    --- These wrap some base functions and make them only operate on the current Event players
+    if SERVER then
+        --- Runs util.Effect for the Event's players
+        --- NOTE: You should use this in place of util.Effect
+        function eventBase:UtilEffect( effectName, data )
+            local filter = self:GetPlayersFilter()
+            util.Effect( effectName, data, false, filter )
+        end
 
---- Gets a managed NW2 Angle on the given Entity
---- @param ent Entity
---- @param key string
---- @return Angle?
-function eventBase:GetNW2Angle( ent, key, default )
-    return self:GetNW2Var( ent, key, default )
-end
+        --- Runs util.ScreenShake for the Event's players
+        --- NOTE: You should use this in place of util.ScreenShake
+        --- @param origin Vector
+        --- @param amplitude number
+        --- @param frequence number
+        --- @param duration number
+        --- @param radius number
+        --- @param airshake boolean
+        function eventBase:UtilScreenshake( origin, amplitude, frequence, duration, radius, airshake )
+            self:BroadcastMethodToPlayers( "DoScreenshake", origin, amplitude, frequence, duration, radius, airshake )
+        end
+    end
 
---- Gets a managed NW2 Boolean on the given Entity
---- @param ent Entity
---- @param key string
---- @param default boolean?
---- @return boolean?
-function eventBase:GetNW2Bool( ent, key, default )
-    return self:GetNW2Var( ent, key, default )
-end
-
---- Gets a managed NW2 Entity on the given Entity
---- @param ent Entity
---- @param key string
---- @param default Entity?
---- @return Entity?
-function eventBase:GetNW2Entity( ent, key, default )
-    return self:GetNW2Var( ent, key, default )
-end
-
---- Gets a managed NW2 Integer on the given Entity
---- @param ent Entity
---- @param key string
---- @param default number?
---- @return number?
-function eventBase:GetNW2Int( ent, key, default )
-    return self:GetNW2Var( ent, key, default )
-end
-
---- Gets a managed NW2 String on the given Entity
---- @param ent Entity
---- @param key string
---- @param default string?
---- @return string?
-function eventBase:GetNW2String( ent, key, default )
-    return self:GetNW2Var( ent, key, default )
-end
-
---- Sets a managed NW2 Vector on the given Entity
---- @param ent Entity
---- @param key string
---- @param default Vector?
---- @return Vector?
-function eventBase:GetNW2Vector( ent, key, default )
-    self:GetNW2Var( ent, key, default )
+    if CLIENT then
+        --- Runs util.ScreenShake
+        --- @param origin Vector
+        --- @param amplitude number
+        --- @param frequence number
+        --- @param duration number
+        --- @param radius number
+        --- @param airshake boolean
+        function eventBase:DoScreenshake( origin, amplitude, frequence, duration, radius, airshake )
+            util.ScreenShake( origin, amplitude, frequence, duration, radius, airshake )
+        end
+    end
 end
 
 
@@ -684,6 +766,7 @@ end
             doStuff()
         end
 --]]
+
 function eventBase:Initialize()
     self._players = {}
     self._playerLookup = {}
@@ -730,28 +813,28 @@ end
 
 function eventBase:Cleanup()
     -- Cleanup event hooks
-    for hookName, listeners in pairs( self._hookListeners ) do
+    for hookName, listeners in pairs( self._hookListeners or {} ) do
         for listenerName in pairs( listeners ) do
             hook.Remove( hookName, listenerName )
         end
     end
 
     -- Cleanup event timers
-    for timerName in pairs( self._timers ) do
+    for timerName in pairs( self._timers or {} ) do
         timer.Remove( timerName )
     end
 
     -- TODO: Cleanup managed CallOnRemove callbacks
 
     -- Cleanup event entities
-    for _, ent in ipairs( self._entities ) do
+    for _, ent in ipairs( self._entities or {} ) do
         if ent and ent:IsValid() then
             ent:Remove()
         end
     end
 
     -- Cleanup event NW2 Vars
-    for ent, keys in pairs( self._nw2Vars ) do
+    for ent, keys in pairs( self._nw2Vars or {} ) do
         if IsValid( ent ) then
             for _, key in ipairs( keys ) do
                 ent:SetNW2Var( key, nil )
@@ -760,7 +843,7 @@ function eventBase:Cleanup()
     end
 
     -- Cleanup event entity table Vars
-    for ent, keys in pairs( self._entVars ) do
+    for ent, keys in pairs( self._entVars or {} ) do
         if IsValid( ent ) then
             local tbl = ent:GetTable()
 
@@ -771,10 +854,15 @@ function eventBase:Cleanup()
     end
 
     -- Cleanup event entity callbacks
-    for ent, hooks in pairs( self._entCallbacks ) do
+    for ent, hooks in pairs( self._entCallbacks or {} ) do
         if IsValid( ent ) then
-            for hookName, callbackID in pairs( hooks ) do
-                ent:RemoveCallback( hookName, callbackID )
+            for hookName, callbackIDs in pairs( hooks ) do
+                local idCount = #callbackIDs
+
+                for i = 1, idCount do
+                    local callbackID = callbackIDs[i]
+                    ent:RemoveCallback( hookName, callbackID )
+                end
             end
         end
     end
@@ -809,6 +897,23 @@ function eventBase:Cleanup()
     } )
 end
 
+-- ===== Areas =====
+do
+    if SERVER then
+        --- Creates a new area handler
+        --- @param pos Vector
+        --- @param min Vector
+        --- @param max Vector
+        --- @param callback function
+        function eventBase:CreateArea( pos, min, max, callback )
+            local area = self:EntCreate( "gef_area" )
+            area:SetPos( pos )
+            area:Spawn()
+            area:Setup( min, max )
+            area:SetCallback( callback )
+        end
+    end
+end
 
 ----- SETUP -----
 
@@ -834,6 +939,8 @@ if SERVER then
 end
 
 if CLIENT then
+    local unpack = unpack
+
     net.Receive( "GEF_EventMethod", function()
         local id = net.ReadUInt( 32 )
         local event = GEF.ActiveEventsByID[id]
@@ -854,16 +961,5 @@ if CLIENT then
         net.Start( "GEF_JoinRequest" )
         net.WriteUInt( self:GetID(), 32 )
         net.SendToServer()
-    end
-
-    --- Runs util.ScreenShake
-    --- @param origin Vector
-    --- @param amplitude number
-    --- @param frequence number
-    --- @param duration number
-    --- @param radius number
-    --- @param airshake boolean
-    function eventBase:DoScreenshake( origin, amplitude, frequence, duration, radius, airshake )
-        util.ScreenShake( origin, amplitude, frequence, duration, radius, airshake )
     end
 end

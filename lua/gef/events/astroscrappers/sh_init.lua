@@ -1,13 +1,24 @@
+AddCSLuaFile( "cl_init.lua" )
+AddCSLuaFile( "sh_scoring.lua" )
+AddCSLuaFile( "cl_drawing.lua" )
+
 EVENT.PrintName = "Astro Scrappers!"
 EVENT.Description = "Precious scrap is raining from the sky! Collect as much as you can!"
 EVENT.UsesTeams = false
 EVENT.Origin = Vector( -725.1123046875, -939.87512207031, -11139.96875 )
+EVENT.CapturePointSize = 250
+EVENT.CapturePoints = {
+    Vector( -2727.44140625, 865.72546386719, -11139.96875 ),
+    Vector( -1393.7622070312, -3755.2333984375, -11143.96875 ),
+    Vector( 2411.1982421875, -2201.1936035156, -11143.96875 )
+}
 
 --- The total duration of the event
 EVENT.EventDuration = 1 * 60
 
 EVENT.PuntsToGather = 12
 EVENT.PuntResetTime = 1.2
+EVENT.CarSpawnInterval = 10
 
 ----- STATIC FUNCTIONS -----
 
@@ -20,7 +31,7 @@ function EVENT:Initialize()
     end
 
     if CLIENT then
-        self:ShowScoreboard()
+        -- self:ShowScoreboard()
         return
     end
 end
@@ -46,4 +57,7 @@ if SERVER then
     include( "sv_init.lua" )
 else
     include( "cl_init.lua" )
+    include( "cl_drawing.lua" )
 end
+
+include( "sh_scoring.lua" )

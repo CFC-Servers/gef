@@ -1,4 +1,3 @@
-local angZero = Angle( 0, 0, 0 )
 local red = Color( 255, 0, 0 )
 include( "sh_init.lua" )
 
@@ -11,5 +10,6 @@ function ENT:Draw()
     local min = self:GetMin()
     local max = self:GetMax()
 
-    render.DrawWireframeBox( pos, angZero, min, max, red, false )
+    render.SetColorMaterial()
+    render.DrawWireframeBox( pos, self:GetAngles(), min, max, red, false )
 end

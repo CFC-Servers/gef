@@ -134,6 +134,10 @@ if SERVER then
             return self:OnPuntPlayer( ply, pusherFor )
         end
     end
+
+    function EVENT:GravGunPickupAllowed( _, ent )
+        if ent.GEF_IsPusher then return false end
+    end
 end
 
 if CLIENT then

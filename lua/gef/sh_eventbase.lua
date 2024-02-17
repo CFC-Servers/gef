@@ -744,6 +744,27 @@ do
     end
 end
 
+-- ===== Extra Util Functions =====
+do
+    if SERVER then
+        --- Immediately dissolves the given entity
+        --- @param ent Entity
+        function eventBase:DissolveEnt( ent )
+            local dissolver = self:EntCreate( "env_entity_dissolver" )
+
+            dissolver.Target = "dissolve" .. ent:GetCreationID()
+            dissolver:SetKeyValue( "dissolvetype", "0" )
+            dissolver:SetKeyValue( "magnitude", "0" )
+            dissolver:SetPos( ent:GetPos() )
+
+            ent:SetName( dissolver.Target )
+
+            dissolver:Fire( "Dissolve", dissolver.Target, 0 )
+            dissolver:Fire( "Kill", "", 0.1 )
+        end
+    end
+end
+
 
 if SERVER then
     --- Begins a simple signup process for players to join an event.

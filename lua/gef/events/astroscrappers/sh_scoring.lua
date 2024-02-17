@@ -70,73 +70,37 @@ if SERVER then
         self:SetNW2Int( ply, "Punts", 0 )
 
         local scrapEnt = self:EntCreate( "prop_physics" )
-        scrapEnt:SetModel( "models/props_junk/iBeam01a_cluster01.mdl" )
+        scrapEnt:SetModel( "models/props_c17/SuitCase_Passenger_Physics.mdl" )
         scrapEnt:SetPos( ply:GetPos() + dropOffset + ply:GetForward() * 50 )
-        scrapEnt:SetAngles( AngleRand( -180, 180 ) )
-        srapEnt:Spawn()
+
+        local angles = Angle( 0, math_random( -180, 180 ), 0 )
+        scrapEnt:SetAngles( angles )
+        scrapEnt:Spawn()
+        scrapEnt:Activate()
+
+        local phys = scrapEnt:GetPhysicsObject()
+        phys:EnableMotion( false )
+        phys:SetVelocity( ply:GetVelocity() + VectorRand( -750, 750 ) )
 
         self:SetNW2Bool( scrapEnt, "IsScrap", true )
         self:SetNW2Int( scrapEnt, "PuntsRequired", 3 )
-
-        self:TimerSimple( 0.1, function()
-            if not IsValid( scrapEnt ) then return end
-            local phys = scrapEnt:GetPhysicsObject()
-            phys:SetVelocity( ply:GetVelocity() + VectorRand( -750, 750 ) )
-        end )
-    end
-
-    --- Called when a player grav punts another player
-    --- @param ply Player
-    --- @param target Player|Entity
-    function EVENT:OnPuntPlayer( ply, target )
-        if self:GetNW2Bool( target, "HoldingScrap", false ) then
-            local chance = math.random( 1, 100 )
-
-            if chance <= self.PuntDropChance then
-                self:DropScrap( target )
-                PrintMessage( HUD_PRINTTALK, target:Nick() .. " has dropped a scrap!" )
-            end
-
-            return true
-        end
-
-        local targetVel = target:GetVelocity()
-        targetVel:Mul( 0.25 )
-        targetVel:Negate()
-        targetVel:Add( Vector( 0, 0, 45 ) )
-        targetVel:Add( VectorRand( -50, 50 ) )
-
-        local chance = math.random( 1, 100 )
-        if chance <= self.PuntCritChance then
-            targetVel:Mul( 2 )
-        end
-
-        target:SetVelocity( targetVel )
-
-        return true
     end
 
     --- Called on GravGunPunt
     --- @param ply Player
     --- @param ent Entity
     function EVENT:OnGravPunt( ply, ent )
-        print( "Punting", ply, ent )
         if not self:HasPlayer( ply ) then return end
 
         if self:GetNW2Bool( ent, "IsScrap", false ) then
-            print( "Punting scrap", ply, ent )
             return self:OnPuntScrap( ply, ent )
-        end
-
-        local pusherFor = self:GetNW2Entity( ent, "PusherFor" )
-        -- if self:HasPlayer( pusherFor ) then
-        if pusherFor and pusherFor:IsPlayer() then
-            return self:OnPuntPlayer( ply, pusherFor )
         end
     end
 
-    function EVENT:GravGunPickupAllowed( _, ent )
-        if ent.GEF_IsPusher then return false end
+    function EVENT:SetupScoringModule()
+        self:HookAdd( "GravGunPunt", "CheckPunt", function( ply, ent )
+            return self:OnGravPunt( ply, ent )
+        end )
     end
 end
 
@@ -147,14 +111,7 @@ if CLIENT then
         self.Scores[ply] = value
     end
 
-    --- Called when a player punts a player
-    --- @param _ Player
-    --- @param target Player|Entity?
-    function EVENT:OnPuntPlayer( ply, target )
-        return true
-    end
-
-    --- Called when a player grav punts a meteor
+    --- Called when a player grav punts a scrap
     --- @param ply Player
     --- @param _ Entity
     function EVENT:OnPuntScrap( ply, _ )
@@ -171,18 +128,16 @@ if CLIENT then
     --- @param ply Player
     --- @param ent Entity
     function EVENT:OnGravPunt( ply, ent )
-        print( "Punting", ply, ent )
         if not self:HasPlayer( ply ) then return end
 
         if self:GetNW2Bool( ent, "IsScrap", false ) then
-            print( "Punting scrap", ply, ent )
             return self:OnPuntScrap( ply, ent )
         end
+    end
 
-        local pusherFor = self:GetNW2Entity( ent, "PusherFor" )
-        -- if self:HasPlayer( pusherFor ) then
-        if pusherFor and pusherFor:IsPlayer() then
-            return self:OnPuntPlayer( ply, pusherFor )
-        end
+    function EVENT:SetupScoringModule()
+        self:HookAdd( "GravGunPunt", "CheckPunt", function( ply, ent )
+            return self:OnGravPunt( ply, ent )
+        end )
     end
 end

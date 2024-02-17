@@ -45,10 +45,8 @@ function EVENT:OnStarted()
 
     self:SetupCapturePoints()
     self:SetupCarsModule()
+    self:SetupScoringModule()
 
-    self:HookAdd( "GravGunPunt", "CheckPunt", function( ply, ent )
-        return self:OnGravPunt( ply, ent )
-    end )
 
     self:TimerCreate( "SpawnCars", self.CarSpawnInterval, 0, function()
         self:SpawnCar()

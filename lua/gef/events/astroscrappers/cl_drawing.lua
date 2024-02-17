@@ -42,26 +42,38 @@ function EVENT:DrawOverlay()
     end
 end
 
-local verticalOffset = Vector( 0, 0, 10 )
-local angZero = Angle( 0, 0, 0 )
-local cam_Start3D2D = cam.Start3D2D
-local cam_End3D2D = cam.End3D2D
-local surface_SetDrawColor = surface.SetDrawColor
-local surface_DrawRect = surface.DrawRect
-local surface_DrawOutlinedRect = surface.DrawOutlinedRect
-function EVENT:DrawCapturePoints()
-    local capturePoints = self.CapturePoints
-    local capturePointSize = self.CapturePointSize
+do
+    local verticalOffset = Vector( 0, 0, 10 )
+    local angZero = Angle( 0, 0, 0 )
+    local cam_Start3D2D = cam.Start3D2D
+    local cam_End3D2D = cam.End3D2D
+    local surface_SetDrawColor = surface.SetDrawColor
+    local surface_DrawRect = surface.DrawRect
+    local surface_DrawOutlinedRect = surface.DrawOutlinedRect
+    function EVENT:DrawCapturePoints()
+        local capturePoints = self.CapturePoints
+        local capturePointSize = self.CapturePointSize
 
-    for i = 1, #capturePoints do
-        local point = capturePoints[i]
+        for i = 1, #capturePoints do
+            local point = capturePoints[i]
 
-        cam_Start3D2D( point + verticalOffset, angZero, 1 )
-        surface_SetDrawColor( 85, 200, 100, 255 )
-        surface_DrawRect( -capturePointSize, -capturePointSize, capturePointSize * 2, capturePointSize * 2 )
+            cam_Start3D2D( point + verticalOffset, angZero, 1 )
+            surface_SetDrawColor( 85, 200, 100, 255 )
+            surface_DrawRect( -capturePointSize, -capturePointSize, capturePointSize * 2, capturePointSize * 2 )
 
-        surface_SetDrawColor( 0, 0, 0, 255 )
-        surface_DrawOutlinedRect( -capturePointSize, -capturePointSize, capturePointSize * 2, capturePointSize * 2, 5 )
-        cam_End3D2D()
+            surface_SetDrawColor( 0, 0, 0, 255 )
+            surface_DrawOutlinedRect( -capturePointSize, -capturePointSize, capturePointSize * 2, capturePointSize * 2, 5 )
+            cam_End3D2D()
+        end
     end
+end
+
+function EVENT:SetupDrawingModule()
+    self:HookAdd( "PostDrawHUD", "DrawHUD", function()
+        self:DrawOverlay()
+    end )
+
+    self:HookAdd( "PostDrawTranslucentRenderables", "DrawCapturePoints", function()
+        self:DrawCapturePoints()
+    end )
 end

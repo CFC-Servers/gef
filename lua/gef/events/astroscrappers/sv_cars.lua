@@ -52,20 +52,44 @@ do
         return { origin = origin + defaultOffset, destination = origin }
     end
 
-    --- Given a car, find a path and set up its position
-    --- @param car Entity
-    function EVENT:PositionCar( car )
+    --- Create a Car, ready to be thrown
+    --- @param model string
+    function EVENT:CreateCar( model )
         local path = getPath( self.Origin )
         local carOrigin = path.origin
         local destination = path.destination
-
         local pathNormal = (destination - carOrigin):GetNormalized()
+        local pathAngle = pathNormal:Angle()
+
+        local car = self:EntCreate( "prop_physics" )
+        car:SetModel( model )
         car:SetPos( carOrigin )
-        car:SetAngles( pathNormal:Angle() )
+        car:SetAngles( pathAngle )
+        car:SetCollisionGroup( COLLISION_GROUP_IN_VEHICLE )
+        car:Spawn()
+        car:Activate()
+
+        local collider = self:EntCreate( "prop_physics" )
+        collider:SetModel( "models/hunter/misc/sphere025x025.mdl" )
+        collider:SetNoDraw( true )
+        collider:SetPos( car:WorldSpaceCenter() )
+        collider:SetAngles( pathAngle )
+        collider:Spawn()
+        collider:Activate()
+
+        car:SetParent( collider )
+
+        local colliderPhys = collider:GetPhysicsObject()
+        colliderPhys:SetMass( 99999 )
+        colliderPhys:EnableDrag( false )
+        colliderPhys:EnableGravity( false )
 
         self:SetEntVar( car, "origin", origin )
         self:SetEntVar( car, "pathNormal", pathNormal )
         self:SetEntVar( car, "destination", destination )
+        self:SetEntVar( collider, "car", car )
+
+        return car, collider
     end
 end
 
@@ -75,43 +99,42 @@ do
 
     --- Explodes scrap from an origin
     --- @param pos Vector
-    function EVENT:LaunchScrapFrom( pos )
+    function EVENT:LaunchScrapPiecesFrom( pos )
         local count = math_random( 1, 6 )
         local scrapModels = self.ScrapModels
 
         for _ = 1, count do
-            local scrap = self:EntCreate( "prop_physics" )
-            scrap:SetModel( scrapModels[math_random( 1, #scrapModels )] )
+            local piece = self:EntCreate( "prop_physics" )
+            piece:SetModel( scrapModels[math_random( 1, #scrapModels )] )
 
             local offset = VectorRand( -1, 1 )
 
-            scrap:SetPos( pos + offset * 50 )
-            scrap:SetAngles( AngleRand() )
-            scrap:Spawn()
-            scrap:Activate()
+            piece:SetPos( pos + offset * 100 )
+            piece:SetAngles( AngleRand() )
+            piece:Spawn()
+            piece:Activate()
 
-            verticalOffset:SetUnpacked( 0, 0, math_random( 300, 1400 ) )
+            local radius = piece:GetModelRadius()
+            verticalOffset:SetUnpacked( 0, 0, math_random( radius, radius * 2 ) )
 
-            local phys = scrap:GetPhysicsObject()
+            local phys = piece:GetPhysicsObject()
             phys:SetMass( 250 )
             phys:SetVelocityInstantaneous( offset * math_random( 300, 1400 ) + verticalOffset )
 
             local angMomentum = VectorRand( -400, 400 )
             phys:AddAngleVelocity( angMomentum )
 
-            self:SetEntVar( scrap, "IsScrap", true )
+            self:SetEntVar( piece, "IsScrapPiece", true )
 
-            -- local decayAverage = self.CarSpawnInterval * 2
-            local decayAverage = 5
+            local decayAverage = self.CarSpawnInterval * 2
             local minDecay = decayAverage * 0.75
             local maxDecay = decayAverage * 1.25
             local decayTime = math_random( minDecay, maxDecay )
 
-            self:TimerCreate( "ScrapTimeout_" .. scrap:GetCreationID(), decayTime, 1, function()
+            self:TimerCreate( "ScrapTimeout_" .. piece:GetCreationID(), decayTime, 1, function()
                 if not self:IsValid() then return end
-                if not IsValid( scrap ) then return end
-                print( "Decaying scrap", self, scrap )
-                self:DissolveEnt( scrap )
+                if not IsValid( piece ) then return end
+                self:DissolveEnt( piece )
             end )
         end
     end
@@ -119,7 +142,6 @@ end
 
 do
     local EffectData = EffectData
-    local COLLISION_GROUP_NONE = COLLISION_GROUP_NONE
 
     --- Called once the car is fully settled after landing
     --- @param car Entity
@@ -127,7 +149,7 @@ do
         local maxDistance = 900
         local destination = self:GetEntVar( car, "destination" )
 
-        local effectCount = 50
+        local effectCount = 15
         local ed = EffectData()
         ed:SetOrigin( destination )
         ed:SetEntity( car )
@@ -140,51 +162,33 @@ do
 
         self:UtilScreenshake( destination, 20, 40, 1, maxDistance, true )
         self:LaunchPlayersFrom( destination, maxDistance )
-        self:LaunchScrapFrom( destination )
-
-        -- Slight delay to make sure players are launched before the car is settled
-        self:TimerSimple( 0.1, function()
-            if not IsValid( car ) then return end
-            car:SetCollisionGroup( COLLISION_GROUP_NONE )
-        end )
+        self:LaunchScrapPiecesFrom( destination )
     end
 end
 
-function EVENT:LaunchCar( car )
-    if not IsValid( car ) then return end
-
-    car:SetCollisionGroup( COLLISION_GROUP_WORLD )
-
-    local phys = car:GetPhysicsObject()
-    phys:SetMass( 999999 )
+function EVENT:LaunchCar( collider )
+    if not IsValid( collider ) then return end
+    local car = self:GetEntVar( collider, "car" )
 
     -- Shoot it at the target
     local pathNormal = self:GetEntVar( car, "pathNormal" )
+    local phys = collider:GetPhysicsObject()
     phys:SetVelocityInstantaneous( pathNormal * math_random( 3000, 7500 ) * phys:GetMass() * 3 )
 
     -- Add some spin
     local angMomentum = VectorRand( -400, 400 )
     phys:AddAngleVelocity( angMomentum )
-
-    -- Alert clients
-    local carOrigin = self:GetEntVar( car, "origin" )
-    local destination = self:GetEntVar( car, "destination" )
-    self:BroadcastMethodToPlayers( "DebugCarLines", carOrigin, destination )
-
-    phys:EnableGravity( false )
 end
 
---- @param car Entity
-function EVENT:SetupOnCollide( car )
+--- @param collider Entity
+function EVENT:SetupOnCollide( collider )
     local id
 
-    id = self:AddEntCallback( car, "PhysicsCollide", function( _, data )
+    id = self:AddEntCallback( collider, "PhysicsCollide", function( _, data )
         local hitEnt = data.HitEntity
         if not hitEnt:IsWorld() then return end
-        data.PhysObject:EnableMotion( false )
-
-        self:HandleCarLanding( car )
-        self:RemoveEntCallback( car, "PhysicsCollide", id )
+        self:RemoveEntCallback( collider, "PhysicsCollide", id )
+        self:HandleCarLanding( collider, data.PhysObject )
     end )
 end
 
@@ -195,43 +199,33 @@ function EVENT:SpawnCar()
     local modelSet = isBig and models.big or models.small
     local model = modelSet[math_random( 1, #modelSet )]
 
-    local car = self:EntCreate( "prop_physics" )
-    car:SetModel( model )
-
-    self:PositionCar( car )
-    self:SetupOnCollide( car )
-
-    car:Spawn()
-    car:Activate()
-    self:LaunchCar( car )
+    local car, collider = self:CreateCar( model )
+    self:SetupOnCollide( collider )
+    self:LaunchCar( collider )
 
     self:SetNW2Bool( car, "IsScrap", true )
     self:SetNW2Int( car, "PuntsRequired", isBig and self.PuntsRequiredBig or self.PuntsRequiredSmall )
 end
 
---- @param car Entity
-function EVENT:HandleCarLanding( car )
-    local pathNormal = self:GetEntVar( car, "pathNormal" )
+--- @param collider Entity
+function EVENT:HandleCarLanding( collider, colliderPhys )
+    colliderPhys:EnableMotion( false )
+    local pos = colliderPhys:GetPos()
+    local angles = colliderPhys:GetAngles()
 
-    local carRadius = car:GetModelRadius()
-    local sinkDepth = 20 + carRadius * 0.5
-    local sinkOffset = pathNormal * sinkDepth
+    -- Remove the car from the handler, freeze it, and delete the collider
+    local car = self:GetEntVar( collider, "car" )
+    local carPhys = car:GetPhysicsObject()
+    carPhys:EnableMotion( false )
 
-    local steps = 8
-    local duration = 0.15
-    local hpos = car:GetPos()
-    for i = 1, steps do
-        local ratio = i / steps
+    timer.Simple( 0, function()
+        car:SetParent( nil )
+        car:SetPos( pos )
+        car:SetAngles( angles )
+        collider:Remove()
 
-        self:TimerSimple( duration * ratio, function()
-            if not IsValid( car ) then return end
-            car:SetPos( hpos + (sinkOffset * ratio) )
-        end )
-    end
-
-    self:TimerSimple( duration, function()
-        if not IsValid( car ) then return end
         self:OnCarSettled( car )
+        car:SetCollisionGroup( COLLISION_GROUP_NONE )
     end )
 end
 
@@ -239,7 +233,7 @@ end
 function EVENT:SetupCarsModule()
     --- @param ent Entity
     local function resetTimer( ent )
-        if self:GetEntVar( ent, "IsScrap" ) then
+        if self:GetEntVar( ent, "IsScrapPiece" ) then
             self:TimerStart( "ScrapTimeout_" .. ent:GetCreationID() )
         end
     end

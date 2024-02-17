@@ -50,6 +50,7 @@ function EVENT:OnStarted()
 
     self:TimerCreate( "SpawnCars", self.CarSpawnInterval, 0, function()
         self:SpawnCar()
+        self:TimerAdjust( "SpawnCars", self.CarSpawnInterval * math.random( 0.25, 1.25 ), 0 )
     end )
     self:SpawnCar()
 

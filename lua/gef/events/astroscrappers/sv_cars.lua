@@ -100,7 +100,7 @@ do
     --- Explodes scrap from an origin
     --- @param pos Vector
     function EVENT:LaunchScrapPiecesFrom( pos )
-        local count = math_random( 1, 6 )
+        local count = math_random( 2, 12 )
         local scrapModels = self.ScrapModels
 
         for _ = 1, count do
@@ -118,7 +118,7 @@ do
             verticalOffset:SetUnpacked( 0, 0, math_random( radius, radius * 2 ) )
 
             local phys = piece:GetPhysicsObject()
-            phys:SetMass( 250 )
+            phys:SetMass( math_random( 100, 250 ) )
             phys:SetVelocityInstantaneous( offset * math_random( 300, 1400 ) + verticalOffset )
 
             local angMomentum = VectorRand( -400, 400 )
@@ -126,9 +126,9 @@ do
 
             self:SetEntVar( piece, "IsScrapPiece", true )
 
-            local decayAverage = self.CarSpawnInterval * 2
-            local minDecay = decayAverage * 0.75
-            local maxDecay = decayAverage * 1.25
+            local decayAverage = self.CarSpawnInterval * 5
+            local minDecay = decayAverage
+            local maxDecay = decayAverage * 1.5
             local decayTime = math_random( minDecay, maxDecay )
 
             self:TimerCreate( "ScrapTimeout_" .. piece:GetCreationID(), decayTime, 1, function()
@@ -226,20 +226,37 @@ function EVENT:HandleCarLanding( collider, colliderPhys )
 
         self:OnCarSettled( car )
         car:SetCollisionGroup( COLLISION_GROUP_NONE )
+
+        self:TimerCreate( "ScrapTimeout_" .. car:GetCreationID(), self.CarSpawnInterval * 7, 1, function()
+            if not self:IsValid() then return end
+            if not IsValid( car ) then return end
+            self:DissolveEnt( car )
+        end )
     end )
 end
 
 --- Initializes the AstroScrappers Cars module
 function EVENT:SetupCarsModule()
     --- @param ent Entity
-    local function resetTimer( ent )
-        if self:GetEntVar( ent, "IsScrapPiece" ) then
-            self:TimerStart( "ScrapTimeout_" .. ent:GetCreationID() )
-        end
+    local function resetTimer( _, ent )
+        local isScrap = self:GetNW2Bool( ent, "IsScrap" )
+        isScrap = isScrap or self:GetEntVar( ent, "IsScrapPiece" )
+
+        if not isScrap then return end
+
+        self:TimerStart( "ScrapTimeout_" .. ent:GetCreationID() )
     end
 
     self:HookAdd( "GravGunOnPickedUp", "ResetScrapTimers", resetTimer )
     self:HookAdd( "GravGunPunt", "ResetScrapTimers", resetTimer )
+
+    self:HookAdd( "EntityTakeDamage", "ReducePhysicsDamage", function( ent, dmg )
+        if not self:HasPlayer( ent ) then return end
+
+        if dmg:IsDamageType( DMG_CRUSH ) then
+            dmg:ScaleDamage( 0.075 )
+        end
+    end )
 end
 
 EVENT.CarModels = {

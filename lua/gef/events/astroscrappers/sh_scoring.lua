@@ -1,6 +1,3 @@
---- TODO: Team support
-EVENT.Scores = {}
-
 --- Increments the score count by 1 for the given player
 --- @param ply Player
 --- @return number score The score for the player
@@ -15,11 +12,6 @@ end
 
 if SERVER then
     local IsValid = IsValid
-
-    --- @param ply Player
-    function EVENT:OnPlayerAdded( ply )
-        self.Scores[ply] = 0
-    end
 
     --- Called when a player picks up scrap
     --- @param ply Player
@@ -128,15 +120,18 @@ if SERVER then
     --- @param ply Player
     --- @param ent Entity
     function EVENT:OnGravPunt( ply, ent )
+        print( "Punting", ply, ent )
         if not self:HasPlayer( ply ) then return end
 
         if self:GetNW2Bool( ent, "IsScrap", false ) then
+            print( "Punting scrap", ply, ent )
             return self:OnPuntScrap( ply, ent )
         end
 
-        -- if self:HasPlayer( ent ) then
-        if ent:IsPlayer() then
-            return self:OnPuntPlayer( ply, ent )
+        local pusherFor = self:GetNW2Entity( ent, "PusherFor" )
+        -- if self:HasPlayer( pusherFor ) then
+        if pusherFor and pusherFor:IsPlayer() then
+            return self:OnPuntPlayer( ply, pusherFor )
         end
     end
 end
@@ -150,7 +145,7 @@ if CLIENT then
 
     --- Called when a player punts a player
     --- @param _ Player
-    --- @param target Player|Entity
+    --- @param target Player|Entity?
     function EVENT:OnPuntPlayer( ply, target )
         return true
     end
@@ -172,15 +167,18 @@ if CLIENT then
     --- @param ply Player
     --- @param ent Entity
     function EVENT:OnGravPunt( ply, ent )
+        print( "Punting", ply, ent )
         if not self:HasPlayer( ply ) then return end
 
         if self:GetNW2Bool( ent, "IsScrap", false ) then
+            print( "Punting scrap", ply, ent )
             return self:OnPuntScrap( ply, ent )
         end
 
-        -- if self:HasPlayer( ent ) then
-        if ent:IsPlayer() then
-            return self:OnPuntPlayer( ply, ent )
+        local pusherFor = self:GetNW2Entity( ent, "PusherFor" )
+        -- if self:HasPlayer( pusherFor ) then
+        if pusherFor and pusherFor:IsPlayer() then
+            return self:OnPuntPlayer( ply, pusherFor )
         end
     end
 end

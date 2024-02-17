@@ -1,7 +1,9 @@
 if GEF then
     for _, event in ipairs( GEF.ActiveEvents ) do
         print( "Cleaning up existing event:", event:GetID() )
-        event:Cleanup()
+        if event:IsValid() then
+            event:Cleanup()
+        end
     end
 end
 

@@ -110,17 +110,60 @@ function EVENT:SetupCapturePoints()
     end
 end
 
+--- Make a parented pusher element for the given ply
+--- @param ply Player
+function EVENT:MakePlayerPusher( ply )
+    local pusher = self:EntCreate( "prop_physics" )
+    pusher:SetModel( "models/hunter/blocks/cube05x1x025.mdl" )
+
+    local boneID = ply:LookupBone( "ValveBiped.Bip01_Pelvis" )
+    local bonePos = ply:GetBonePosition( boneID ) - Vector( 0, 0, 10 )
+
+    local angles = ply:GetAngles()
+    angles:RotateAroundAxis( angles:Up(), 90 )
+    angles:RotateAroundAxis( angles:Forward(), 90 )
+
+    local hips = ply:LookupAttachment( "chest" )
+
+    pusher:SetPos( bonePos )
+    pusher:SetAngles( angles )
+    pusher:SetParent( ply, hips )
+    pusher:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
+    pusher:SetMoveType( MOVETYPE_NONE )
+    pusher:SetNotSolid( true )
+    -- pusher:SetRenderMode( RENDERMODE_TRANSCOLOR )
+    -- pusher:SetColor4Part( 0, 0, 0, 0 )
+    pusher:Spawn()
+
+    self:SetNW2Entity( pusher, "PusherFor", ply )
+end
+
+function EVENT:SetupPlayerPushers()
+    local players = self:GetPlayers()
+    local playerCount = #players
+
+    for i = 1, playerCount do
+        self:MakePlayerPusher( players[i] )
+    end
+end
+
 function EVENT:OnStarted()
     GEF.Signup.Stop( self, true )
 
     self:SetupCapturePoints()
+    self:SetupPlayerPushers()
 
     self:HookAdd( "GravGunPunt", "CheckPunt", function( ply, ent )
         return self:OnGravPunt( ply, ent )
     end )
 
-    self:TimerCreate( "SpawnCars", self.CarSpawnInterval, 0, function()
-        self:SpawnCar()
+    -- self:TimerCreate( "SpawnCars", self.CarSpawnInterval, 0, function()
+    --     self:SpawnCar()
+    -- end )
+    -- self:SpawnCar()
+
+    self:TimerCreate( "Stop", self.EventDuration, 1, function()
+        self:End()
     end )
 end
 

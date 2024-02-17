@@ -15,7 +15,7 @@ EVENT.CapturePoints = {
 }
 
 --- The total duration of the event
-EVENT.EventDuration = 1 * 60
+EVENT.EventDuration = 10 * 60
 
 EVENT.PuntDropChance = 7 -- Out of 100, liklihood of dropping scrap when being punted
 EVENT.PuntCritChance = 5 -- Out of 100, liklihood of a punt being a critical hit
@@ -26,6 +26,9 @@ EVENT.PuntsRequiredDropped = 4
 EVENT.PuntResetTime = 1.2
 EVENT.CarSpawnInterval = 10
 
+--- TODO: Team support
+EVENT.Scores = {}
+
 ----- STATIC FUNCTIONS -----
 
 function EVENT:Initialize()
@@ -33,7 +36,7 @@ function EVENT:Initialize()
     self.BaseClass.Initialize( self )
 
     if SERVER then
-        self:StartSimpleSignup( 5 )
+        self:StartSimpleSignup( 1 )
     end
 
     if CLIENT then
@@ -50,13 +53,13 @@ end
 
 function EVENT:OnEnded()
     self:Cleanup()
-
-    if CLIENT then
-        self:AnnounceWinner()
-        return
-    end
-
     PrintMessage( HUD_PRINTTALK, "AstroScrappers event ended!" )
+end
+
+--- @param ply Player
+function EVENT:OnPlayerAdded( ply )
+    print( "Player added", ply )
+    self.Scores[ply] = 0
 end
 
 if SERVER then

@@ -49,9 +49,9 @@ end
 --- - Additionally, anything previously made with Event:HookAdd(), Event:CreateTimer(), etc. will automatically be cleaned up.
 --- @return nil
 function eventBase:End()
+    self:BroadcastMethod( "End" )
     self._ended = true
     self:OnEnded()
-    self:BroadcastMethod( "End" )
 
     hook.Run( "GEF_EventEnded", self )
 end
@@ -290,7 +290,7 @@ function eventBase:RemovePlayer( ply )
 end
 
 --- Checks if the player exists in the Event
---- @param ply Player|Entity
+--- @param ply Player|Entity?
 --- @return boolean
 function eventBase:HasPlayer( ply )
     if not ply then return false end

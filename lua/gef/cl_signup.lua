@@ -54,6 +54,7 @@ local startSignup = function( event, duration, allowedPlys )
     local allowedPlyLookup = GEF.Utils.MakeLookupTable( allowedPlys )
 
     event._signingUp = true
+    event._signupEndsAt = CurTime() + duration
     allowedPlyLookupByEvent[event] = allowedPlyLookup
     table.insert( UpcomingEvents, event )
 
@@ -91,13 +92,10 @@ net.Receive( "GEF_StartSignup", function()
     startSignup( event, duration, plys )
 end )
 
-net.Receive( "GEF_StopSignup", function()
+net.Receive( "GEF_EndSignup", function()
     local event = GEF.ActiveEventsByID[net.ReadUInt( 32 )]
     if not event then return end
 
     stopSignup( event, net.ReadBool() )
 end )
-
-
-
 

@@ -75,7 +75,7 @@ function EVENT:OnStarted()
         self:SetPlayerProgress( ply, 1 )
     end
 
-    self:HookAdd( "PlayerSpawn", "GEF_GunGame_GiveWeapons", function( ply )
+    self:HookAdd( "PlayerSpawn", "GiveWeapons", function( ply )
         if not self:HasStarted() then return end
         if not self:HasPlayer( ply ) then return end
 
@@ -87,7 +87,7 @@ function EVENT:OnStarted()
         end )
     end )
 
-    self:HookAdd( "PlayerDeath", "GEF_GunGame_HandleDeath", function( victim, _, attacker )
+    self:HookAdd( "PlayerDeath", "HandleDeath", function( victim, _, attacker )
         if victim == attacker then return end
         if not self:HasStarted() then return end
         if not self:HasPlayer( victim ) then return end
@@ -113,20 +113,20 @@ function EVENT:OnStarted()
         end )
     end )
 
-    self:HookAdd( "PlayerCanPickupWeapon", "GEF_GunGame_BlockOtherWeapons", function( ply, wep )
+    self:HookAdd( "PlayerCanPickupWeapon", "BlockOtherWeapons", function( ply, wep )
         if not IsValid( ply ) then return end
         if not IsValid( wep ) then return end
 
         return self:_BlockWeaponHook( ply, wep:GetClass() )
     end )
 
-    self:HookAdd( "PlayerSpawnSWEP", "GEF_GunGame_BlockOtherWeapons", function( ply, wepClass )
+    self:HookAdd( "PlayerSpawnSWEP", "BlockOtherWeapons", function( ply, wepClass )
         if not IsValid( ply ) then return end
 
         return self:_BlockWeaponHook( ply, wepClass )
     end )
 
-    self:TimerCreate( "GEF_GunGame_EndEvent", self.EventDuration, 1, function()
+    self:TimerCreate( "EndEvent", self.EventDuration, 1, function()
         print( "Gun Game event ended!" )
 
         self:End()
@@ -136,10 +136,7 @@ end
 function EVENT:OnEnded()
     if CLIENT then return end
 
-    -- Don't block weapons anymore, since we're about to respawn everyone before the event cleanup happens.
-    self:HookRemove( "PlayerSpawn", "GEF_GunGame_GiveWeapons" )
-    self:HookRemove( "PlayerCanPickupWeapon", "GEF_GunGame_BlockOtherWeapons" )
-    self:HookRemove( "PlayerSpawnSWEP", "GEF_GunGame_BlockOtherWeapons" )
+    self:Cleanup()
 
     for _, ply in ipairs( self:GetPlayers() ) do
         if IsValid( ply ) and ply:Alive() then

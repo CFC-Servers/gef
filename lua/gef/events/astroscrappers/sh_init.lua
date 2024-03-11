@@ -5,13 +5,18 @@ AddCSLuaFile( "cl_drawing.lua" )
 EVENT.PrintName = "Astro Scrappers!"
 EVENT.Description = "Precious scrap is raining from the sky! Collect as much as you can!"
 EVENT.UsesTeams = false
-EVENT.Origin = Vector( -725.1123046875, -939.87512207031, -11139.96875 )
+-- EVENT.Origin = Vector( -725.1123046875, -939.87512207031, -11139.96875 )
+EVENT.Origin = Vector ( 639.26086425781, -10264.444335938, -12799.96875 )
 
 EVENT.CapturePointSize = 250
 EVENT.CapturePoints = {
-    Vector( -2727.44140625, 865.72546386719, -11139.96875 ),
-    Vector( -1393.7622070312, -3755.2333984375, -11143.96875 ),
-    Vector( 2411.1982421875, -2201.1936035156, -11143.96875 )
+    -- Vector( -2727.44140625, 865.72546386719, -11139.96875 ),
+    -- Vector( -1393.7622070312, -3755.2333984375, -11143.96875 ),
+    -- Vector( 2411.1982421875, -2201.1936035156, -11143.96875 )
+    Vector( 918.35791015625, -5181.9951171875, -12799.96875 ),
+    Vector( -3143.1127929688, -11287.927734375, -12799.96875 ),
+    Vector( 3578.919921875, -11232.208984375, -12799.96875 )
+
 }
 
 --- The total duration of the event

@@ -176,7 +176,7 @@ function EVENT:LaunchCar( collider )
     phys:SetVelocityInstantaneous( pathNormal * math_random( 3000, 7500 ) * phys:GetMass() * 3 )
 
     -- Add some spin
-    local angMomentum = VectorRand( -400, 400 )
+    local angMomentum = VectorRand( -100, 100 )
     phys:AddAngleVelocity( angMomentum )
 end
 
